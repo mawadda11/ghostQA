@@ -2,7 +2,6 @@ import type { ExecutedStep, FlowStep } from "@ghostqa/shared";
 import type { Page } from "playwright";
 
 import { executeFlowStep } from "../baseline/steps.js";
-import type { FlowStepExecutionOptions } from "../baseline/steps.js";
 
 export class ScenarioFlowStepError extends Error {
   constructor(
@@ -21,12 +20,11 @@ export const executeSteps = async (
   baseUrl: string,
   steps: readonly FlowStep[],
   records: ExecutedStep[],
-  options?: FlowStepExecutionOptions,
 ): Promise<void> => {
   for (const step of steps) {
     const startedAt = nowIso();
     try {
-      await executeFlowStep(page, baseUrl, step, options);
+      await executeFlowStep(page, baseUrl, step);
       records.push({
         stepId: step.id,
         position: step.position,

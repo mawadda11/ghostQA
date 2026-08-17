@@ -6,7 +6,7 @@ import {
   collectMatchingResponses,
   criticalStep,
   evaluateAndRecordAssertion,
-  executeCriticalStep,
+  executeRapidCriticalClicks,
   extractResponseIdentifier,
   replayBeforeCritical,
   responseEvidence,
@@ -43,8 +43,7 @@ export class DoubleActionExecutor implements ScenarioExecutor {
       ),
     );
 
-    await executeCriticalStep(context, { clickNoWaitAfter: true });
-    await executeCriticalStep(context, { clickNoWaitAfter: true });
+    await executeRapidCriticalClicks(context, 2);
     const responses = await responsesPromise;
     context.evidence.push(...responseEvidence(matcher, responses));
 

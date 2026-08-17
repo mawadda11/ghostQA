@@ -60,7 +60,8 @@ export type LocatorSpec =
 export interface Project {
   id: string;
   name: string;
-  targetBaseUrl: string;
+  description?: string;
+  baseUrl: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -130,7 +131,8 @@ export interface Flow extends NormalizedFlow {
 
 export interface Scenario {
   id: string;
-  projectId: string;
+  flowId: string;
+  scenarioKey: string;
   name: string;
   family: ScenarioFamily;
   enabled: boolean;

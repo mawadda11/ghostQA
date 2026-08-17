@@ -7,9 +7,10 @@ import type {
 } from "@ghostqa/shared";
 import type { Page, Response } from "playwright";
 
+import { resolveLocator } from "../baseline/locators.js";
 import { evaluateSuccessAssertion } from "../baseline/success-assertion.js";
 import { createEvidenceEntry } from "./evidence.js";
-import { executeSteps } from "./flow.js";
+import { executeSteps, ScenarioFlowStepError } from "./flow.js";
 import { requestMatches } from "./request-matching.js";
 import type { ScenarioExecutionContext } from "./types.js";
 
@@ -60,15 +61,55 @@ export const replayThroughCheckpoint = async (
 
 export const executeCriticalStep = async (
   context: ScenarioExecutionContext,
-  options?: { clickNoWaitAfter?: boolean },
 ): Promise<void> => {
   await executeSteps(
     context.page,
     context.request.target.baseUrl,
     [criticalStep(context)],
     context.executedSteps,
-    options,
   );
+};
+
+export const executeRapidCriticalClicks = async (
+  context: ScenarioExecutionContext,
+  count: number,
+): Promise<void> => {
+  const step = criticalStep(context);
+  if (step.action !== "CLICK") throw new Error("Critical step must be CLICK.");
+  const startedAt = new Date().toISOString();
+  try {
+    await resolveLocator(context.page, step.locator).evaluate(
+      (element, clickCount) => {
+        for (let index = 0; index < clickCount; index += 1) {
+          (element as HTMLElement).click();
+        }
+      },
+      count,
+    );
+    const completedAt = new Date().toISOString();
+    for (let index = 0; index < count; index += 1) {
+      context.executedSteps.push({
+        stepId: step.id,
+        position: step.position,
+        action: step.action,
+        status: "PASSED",
+        startedAt,
+        completedAt,
+      });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    context.executedSteps.push({
+      stepId: step.id,
+      position: step.position,
+      action: step.action,
+      status: "FAILED",
+      startedAt,
+      completedAt: new Date().toISOString(),
+      error: message,
+    });
+    throw new ScenarioFlowStepError(step.id, message);
+  }
 };
 
 const assertionWithTimeout = (

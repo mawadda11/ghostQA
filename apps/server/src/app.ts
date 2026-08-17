@@ -1,11 +1,35 @@
 import type { HealthResponse } from "@ghostqa/shared";
+import type { PrismaClient } from "@prisma/client";
 import express from "express";
 
-export const createApp = (): express.Express => {
+import { createCorsMiddleware } from "./api/cors.js";
+import { errorHandler } from "./api/errors.js";
+import { createApiRouter } from "./api/routes.js";
+import { environment } from "./config/environment.js";
+import { prisma } from "./db/prisma.js";
+import type { RunOrchestrator } from "./services/orchestrator.js";
+
+export interface AppOptions {
+  prisma?: PrismaClient;
+  allowedHosts?: ReadonlySet<string>;
+  artifactRoot?: string;
+  dashboardOrigins?: ReadonlySet<string>;
+  orchestrator?: RunOrchestrator;
+}
+
+export const createApp = (options: AppOptions = {}): express.Express => {
   const app = express();
+  const database = options.prisma ?? prisma;
+  const allowedHosts = options.allowedHosts ?? environment.allowedTargetHosts;
+  const artifactRoot = options.artifactRoot ?? environment.artifactRoot;
 
   app.disable("x-powered-by");
-  app.use(express.json());
+  app.use(
+    createCorsMiddleware(
+      options.dashboardOrigins ?? environment.dashboardOrigins,
+    ),
+  );
+  app.use(express.json({ limit: "1mb" }));
 
   app.get("/health", (_request, response) => {
     const body: HealthResponse = {
@@ -15,6 +39,20 @@ export const createApp = (): express.Express => {
 
     response.status(200).json(body);
   });
+
+  app.use(
+    "/api",
+    createApiRouter({
+      prisma: database,
+      allowedHosts,
+      artifactRoot,
+      ...(options.orchestrator === undefined
+        ? {}
+        : { orchestrator: options.orchestrator }),
+    }),
+  );
+
+  app.use(errorHandler);
 
   return app;
 };

@@ -5,15 +5,10 @@ import { resolveLocator } from "./locators.js";
 
 const DEFAULT_STEP_TIMEOUT_MS = 10_000;
 
-export interface FlowStepExecutionOptions {
-  clickNoWaitAfter?: boolean;
-}
-
 export const executeFlowStep = async (
   page: Page,
   baseUrl: string,
   step: FlowStep,
-  options: FlowStepExecutionOptions = {},
 ): Promise<void> => {
   const timeout = step.timeoutMs ?? DEFAULT_STEP_TIMEOUT_MS;
 
@@ -25,12 +20,7 @@ export const executeFlowStep = async (
       });
       return;
     case "CLICK":
-      await resolveLocator(page, step.locator).click({
-        timeout,
-        ...(options.clickNoWaitAfter === undefined
-          ? {}
-          : { noWaitAfter: options.clickNoWaitAfter }),
-      });
+      await resolveLocator(page, step.locator).click({ timeout });
       return;
     case "FILL":
       await resolveLocator(page, step.locator).fill(step.value, { timeout });

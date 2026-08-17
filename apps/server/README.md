@@ -1,8 +1,21 @@
 # GhostQA Server
 
-Planned stack: Node.js + TypeScript + Express + Prisma + SQLite.
+The Express API owns request validation, target-host authorization, Prisma/
+SQLite persistence, and in-process orchestration of the existing Playwright
+engines. The reusable `packages/test-engine` package has no database dependency.
 
-Responsibilities include API validation, persistence, target allowlisting, and orchestration of the Playwright test engine.
+From the repository root:
 
-Phase 1 includes the Express application, `/health`, the Prisma/SQLite schema,
-and exact-host allowlisting. Project and run APIs remain later-phase work.
+```bash
+npm run db:migrate
+npm run server:dev
+```
+
+The server listens on `http://127.0.0.1:4000` by default. Its health endpoint is
+`GET /health`, and Phase 4 resources live below `/api`. See the root
+`.env.example` for target allowlisting, dashboard CORS, port, and artifact-root
+configuration.
+
+The development SQLite file is `apps/server/prisma/dev.db`. Do not commit it.
+Screenshots and traces remain below the configured artifact root; the database
+contains metadata only.

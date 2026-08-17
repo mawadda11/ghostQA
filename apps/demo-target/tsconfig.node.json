@@ -10,6 +10,7 @@
     "server/**/*.ts",
     "baseline/**/*.ts",
     "scenarios/**/*.ts",
+    "persistence/**/*.ts",
     "vite.config.ts"
   ]
 }

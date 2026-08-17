@@ -7,12 +7,15 @@
     "dev": "tsx watch server/index.ts",
     "build": "vite build && tsc -p tsconfig.server.build.json",
     "start": "node dist-server/index.js --production",
-    "baseline": "tsx baseline/run-baseline.ts",
-    "test:smoke": "node --import tsx --test baseline/baseline.smoke.test.ts",
+    "baseline": "npm run build:scenarios && node dist-scenarios/baseline/run-baseline.js",
+    "test:smoke": "npm run build:scenarios && node --test dist-scenarios/baseline/baseline.smoke.test.js",
     "build:scenarios": "tsc -p tsconfig.scenarios.build.json",
     "scenarios": "npm run build:scenarios && node dist-scenarios/scenarios/run-scenarios.js",
     "test:scenarios": "npm run build:scenarios && node --test dist-scenarios/scenarios/scenarios.smoke.test.js",
-    "lint": "eslint src server baseline scenarios vite.config.ts",
+    "seed": "npm run build:scenarios && node dist-scenarios/persistence/seed.js",
+    "persisted-run": "npm run build:scenarios && node dist-scenarios/persistence/run-persisted.js",
+    "test:persisted-run": "npm run build:scenarios && node --test dist-scenarios/persistence/persisted-run.integration.test.js",
+    "lint": "eslint src server baseline scenarios persistence vite.config.ts",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "dependencies": {

@@ -46,7 +46,8 @@ ghostqa/
 
 ## Demo target
 
-The repository will contain a small demo application named **GhostShop Demo**. It is intentionally seeded with known behavioral bugs so GhostQA can prove it detects real failures.
+**GhostShop Demo** is intentionally seeded with known behavioral bugs so
+GhostQA can prove it detects real failures.
 
 ## Start here
 
@@ -58,23 +59,52 @@ Read:
 
 Then use Codex to implement the project incrementally.
 
-## Development commands
+## Local Phase 4 workflow
+
+Install dependencies and apply the checked-in SQLite migrations:
+
+```bash
+npm install
+npm run db:migrate
+```
+
+Run GhostShop, then the GhostQA server, in separate terminals:
 
 ```bash
 npm run demo:dev
+npm run server:dev
+```
+
+Seed the demo configuration and execute a real persisted run from a third
+terminal:
+
+```bash
+npm run demo:seed
+npm run demo:persisted-run
+```
+
+The default local ports are `4173` for GhostShop, `4000` for the API, and `5173`
+for the Vite dashboard. The SQLite database is
+`apps/server/prisma/dev.db`. Screenshots and traces are stored as files below
+`artifacts/runs/<run-id>/`; SQLite stores only validated metadata and relative
+paths. Both locations are ignored by git.
+
+Use `GHOSTSHOP_PORT`, `GHOSTSHOP_URL`, `PORT`, `GHOSTQA_SERVER_URL`,
+`ALLOWED_TARGET_HOSTS`, `DASHBOARD_ORIGINS`, and `ARTIFACTS_ROOT` to override
+local defaults. `GHOSTSHOP_URL` used by the demo commands must match the target
+saved through the API.
+
+The direct Phase 2 and Phase 3 engine demonstrations remain available:
+
+```bash
 npm run demo:baseline
 npm run demo:scenarios
 ```
 
-The baseline and scenario commands expect GhostShop to be running. The scenario
-runner first validates the baseline, resets fixture state between runs, executes
-all five generic scenario families, and saves evidence under
-`artifacts/ghostshop/`.
-
 ## Status
 
-Phase 3 is implemented: Phase 1 foundations and Phase 2 baseline validation
-remain intact. The generic engine now executes all five V1 behavioral scenario
-families in isolated Chromium contexts with controlled injection, structured
-evidence, deterministic classification, screenshots, and traces. GhostShop
-configuration remains outside the reusable engine.
+Phase 4 is implemented: the Express application persists projects, normalized
+flows, deterministic scenario plans, runs, structured results, and artifact
+metadata through Prisma/SQLite. It orchestrates the existing generic Playwright
+baseline and scenario engines sequentially and exposes read APIs for the Phase 5
+dashboard. GhostShop configuration remains outside the reusable engine.

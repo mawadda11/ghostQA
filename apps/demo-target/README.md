@@ -58,6 +58,32 @@ npm run demo:test:scenarios
 The runner validates the baseline, resets GhostShop before each scenario, and
 writes evidence under `artifacts/ghostshop/<run-id>/<scenario-id>/`.
 
+## Run through the persistent backend
+
+With GhostShop and the GhostQA server running, apply migrations once, seed the
+known-good flow and six scenario instances idempotently, then start a complete
+persisted run:
+
+```bash
+npm run db:migrate
+npm run demo:seed
+npm run demo:persisted-run
+```
+
+The opt-in Phase 4 integration proof runs the same real Chromium path and also
+reads every result and artifact back through the API:
+
+```bash
+npm run demo:test:persisted-run
+```
+
+For non-default ports in PowerShell, set matching values before the commands:
+
+```powershell
+$env:GHOSTSHOP_URL="http://127.0.0.1:4183"
+$env:GHOSTQA_SERVER_URL="http://127.0.0.1:4080"
+```
+
 ## Fixture API
 
 - `POST /api/session` — deterministic login

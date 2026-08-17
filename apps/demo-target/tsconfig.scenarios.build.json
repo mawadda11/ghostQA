@@ -6,5 +6,9 @@
     "rootDir": ".",
     "sourceMap": true
   },
-  "include": ["baseline/ghostshop-flow.ts", "scenarios/**/*.ts"]
+  "include": [
+    "baseline/**/*.ts",
+    "scenarios/**/*.ts",
+    "persistence/**/*.ts"
+  ]
 }
