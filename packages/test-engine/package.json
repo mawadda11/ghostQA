@@ -16,10 +16,17 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
     "lint": "eslint src",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "playwright:install": "playwright install chromium"
   },
   "dependencies": {
-    "@ghostqa/shared": "0.1.0"
+    "@ghostqa/shared": "0.1.0",
+    "playwright": "1.62.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "vitest": "^3.2.7"
   }
 }

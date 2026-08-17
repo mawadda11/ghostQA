@@ -1,17 +1,20 @@
 import type {
+  BaselineExecutionRequest,
   EngineExecutionReport,
-  EngineExecutionRequest,
 } from "@ghostqa/shared";
 
-/**
- * The persistence-free boundary used by the GhostQA server.
- *
- * A Playwright-backed implementation will be added in a later phase. Keeping
- * this contract implementation-agnostic prevents target-specific behavior from
- * leaking into the reusable engine.
- */
+export { PlaywrightBaselineEngine } from "./baseline/runner.js";
+export { createBaselineArtifactPaths } from "./baseline/artifacts.js";
+export { classifyBaselineResult } from "./baseline/classification.js";
+export { evaluateSuccessAssertion } from "./baseline/success-assertion.js";
+export {
+  BaselineValidationError,
+  validateBaselineRequest,
+} from "./baseline/validation.js";
+
+/** Persistence-free baseline execution boundary used by orchestration code. */
 export interface TestEngine {
-  execute(request: EngineExecutionRequest): Promise<EngineExecutionReport>;
+  execute(request: BaselineExecutionRequest): Promise<EngineExecutionReport>;
 }
 
-export type { EngineExecutionReport, EngineExecutionRequest };
+export type { BaselineExecutionRequest, EngineExecutionReport };

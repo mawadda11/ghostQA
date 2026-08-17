@@ -1,19 +1,21 @@
 import type {
   FailureOrigin,
-  Flow,
   JsonValue,
+  NormalizedFlow,
   ResultStatus,
   ScenarioFamily,
+  SuccessAssertion,
 } from "./domain.js";
 
 export interface ExecutionTarget {
   baseUrl: string;
+  allowedHosts: readonly string[];
 }
 
 interface BaseExecutionRequest {
   runId: string;
   target: ExecutionTarget;
-  flow: Flow;
+  flow: NormalizedFlow;
   artifactDirectory: string;
 }
 
@@ -35,6 +37,7 @@ export type EngineExecutionRequest =
   | ScenarioExecutionRequest;
 
 export interface ConsoleObservation {
+  source: "CONSOLE" | "PAGE_ERROR";
   level: "debug" | "info" | "log" | "warning" | "error";
   text: string;
   timestamp: string;
@@ -57,16 +60,43 @@ export interface ExecutionEvidence {
 
 export interface ArtifactDescriptor {
   kind: "SCREENSHOT" | "TRACE";
-  relativePath: string;
+  path: string;
   mimeType: string;
+}
+
+export interface ExecutedStep {
+  stepId: string;
+  position: number;
+  action: string;
+  status: "PASSED" | "FAILED";
+  startedAt: string;
+  completedAt: string;
+  error?: string;
+}
+
+export interface SuccessAssertionResult {
+  assertion: SuccessAssertion;
+  status: "PASSED" | "FAILED" | "NOT_EVALUATED";
+  detail: string;
+}
+
+export interface ExecutionErrorObservation {
+  source: "FLOW_STEP" | "ENGINE";
+  name: string;
+  message: string;
+  stepId?: string;
 }
 
 interface BaseExecutionReport {
   summary: string;
   evidence: ExecutionEvidence;
   artifacts: readonly ArtifactDescriptor[];
+  executedSteps: readonly ExecutedStep[];
+  assertion: SuccessAssertionResult;
+  executionError?: ExecutionErrorObservation;
   startedAt: string;
   completedAt: string;
+  durationMs: number;
 }
 
 interface SuccessfulExecutionReport extends BaseExecutionReport {

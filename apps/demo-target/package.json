@@ -1,0 +1,31 @@
+{
+  "name": "@ghostqa/demo-target",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch server/index.ts",
+    "build": "vite build && tsc -p tsconfig.server.build.json",
+    "start": "node dist-server/index.js --production",
+    "baseline": "tsx baseline/run-baseline.ts",
+    "test:smoke": "node --import tsx --test baseline/baseline.smoke.test.ts",
+    "lint": "eslint src server baseline vite.config.ts",
+    "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json"
+  },
+  "dependencies": {
+    "@ghostqa/shared": "0.1.0",
+    "@ghostqa/test-engine": "0.1.0",
+    "express": "^5.2.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.19.43",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^5.0.4",
+    "tsx": "^4.23.12",
+    "vite": "^6.4.3"
+  }
+}

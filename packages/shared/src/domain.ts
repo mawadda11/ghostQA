@@ -38,6 +38,25 @@ export type JsonValue =
   | { readonly [key: string]: JsonValue }
   | readonly JsonValue[];
 
+export type AriaRole =
+  | "button"
+  | "checkbox"
+  | "dialog"
+  | "heading"
+  | "link"
+  | "listitem"
+  | "navigation"
+  | "radio"
+  | "status"
+  | "textbox";
+
+export type LocatorSpec =
+  | { kind: "ROLE"; role: AriaRole; name: string; exact?: boolean }
+  | { kind: "LABEL"; text: string; exact?: boolean }
+  | { kind: "TEXT"; text: string; exact?: boolean }
+  | { kind: "TEST_ID"; value: string }
+  | { kind: "CSS"; selector: string };
+
 export interface Project {
   id: string;
   name: string;
@@ -46,32 +65,65 @@ export interface Project {
   updatedAt: string;
 }
 
-export interface FlowStep {
+interface BaseFlowStep {
   id: string;
   position: number;
-  action: FlowStepAction;
-  locator?: string;
-  value?: string;
-  url?: string;
   timeoutMs?: number;
 }
 
+export type FlowStep =
+  | (BaseFlowStep & { action: "NAVIGATE"; path: string })
+  | (BaseFlowStep & { action: "CLICK"; locator: LocatorSpec })
+  | (BaseFlowStep & { action: "FILL"; locator: LocatorSpec; value: string })
+  | (BaseFlowStep & {
+      action: "SELECT_OPTION";
+      locator: LocatorSpec;
+      value: string;
+    })
+  | (BaseFlowStep & {
+      action: "PRESS";
+      locator: LocatorSpec;
+      key: string;
+    })
+  | (BaseFlowStep & { action: "WAIT_FOR_URL"; url: string })
+  | (BaseFlowStep & { action: "ASSERT_VISIBLE"; locator: LocatorSpec });
+
+export interface NetworkRequestMatcher {
+  method: string;
+  pathname: string;
+}
+
 export interface CriticalAction {
-  stepPosition: number;
+  stepId: string;
+  label: string;
+  request?: NetworkRequestMatcher;
 }
 
 export type SuccessAssertion =
-  | { kind: "URL_MATCHES"; value: string }
-  | { kind: "ELEMENT_VISIBLE"; locator: string }
-  | { kind: "TEXT_VISIBLE"; text: string; locator?: string };
+  | { kind: "URL_MATCHES"; value: string; timeoutMs?: number }
+  | {
+      kind: "ELEMENT_VISIBLE";
+      locator: LocatorSpec;
+      timeoutMs?: number;
+    }
+  | {
+      kind: "TEXT_VISIBLE";
+      text: string;
+      locator?: LocatorSpec;
+      exact?: boolean;
+      timeoutMs?: number;
+    };
 
-export interface Flow {
+export interface NormalizedFlow {
   id: string;
-  projectId: string;
   name: string;
   steps: readonly FlowStep[];
   criticalAction: CriticalAction;
   successAssertion: SuccessAssertion;
+}
+
+export interface Flow extends NormalizedFlow {
+  projectId: string;
   createdAt: string;
   updatedAt: string;
 }

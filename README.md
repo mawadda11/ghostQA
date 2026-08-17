@@ -58,9 +58,20 @@ Read:
 
 Then use Codex to implement the project incrementally.
 
+## Development commands
+
+```bash
+npm run demo:dev
+npm run demo:baseline
+```
+
+The baseline command expects GhostShop to be running, resets its state, executes
+the generic Chromium runner, and saves evidence under `artifacts/ghostshop/`.
+
 ## Status
 
-Phase 1 foundation is implemented: npm workspaces, the dashboard and server shells,
-the SQLite/Prisma schema and initial migration, shared contracts, the test-engine
-boundary, and target-host safety tests. Browser execution and the GhostShop Demo
-remain later-phase work.
+Phase 2 is implemented: Phase 1 foundations remain intact, GhostShop provides the
+known-good checkout fixture and four documented seeded bugs, and the generic
+Playwright engine validates the normal baseline with screenshot, trace, network,
+console, final-URL, and assertion evidence. Failure scenario executors remain a
+later phase.

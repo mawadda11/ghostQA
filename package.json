@@ -15,7 +15,11 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:generate": "npm run prisma:generate --workspace @ghostqa/server",
-    "db:migrate": "npm run prisma:migrate --workspace @ghostqa/server"
+    "db:migrate": "npm run prisma:migrate --workspace @ghostqa/server",
+    "demo:dev": "npm run dev --workspace @ghostqa/demo-target",
+    "demo:baseline": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine && npm run baseline --workspace @ghostqa/demo-target",
+    "demo:test:smoke": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine && npm run test:smoke --workspace @ghostqa/demo-target",
+    "playwright:install": "npm run playwright:install --workspace @ghostqa/test-engine"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
