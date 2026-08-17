@@ -1,0 +1,17 @@
+﻿node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vscode/
+.idea/
+playwright-report/
+test-results/
+artifacts/**/*
+!artifacts/.gitkeep
+apps/server/prisma/dev.db
+apps/server/prisma/dev.db-journal
