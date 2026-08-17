@@ -1,0 +1,20 @@
+{
+  "name": "ghostqa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Adaptive web behavior testing platform for real-world user and failure scenarios.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Workspace scripts will be wired during implementation\"",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
