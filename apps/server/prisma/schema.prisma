@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum FlowStepAction {
+  NAVIGATE
+  CLICK
+  FILL
+  SELECT_OPTION
+  PRESS
+  WAIT_FOR_URL
+  ASSERT_VISIBLE
+}
+
+enum ScenarioFamily {
+  DOUBLE_ACTION
+  API_FAILURE
+  SLOW_RESPONSE
+  REFRESH_BACK_NAVIGATION
+  SESSION_EXPIRY
+}
+
+enum TestRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  ERROR
+}
+
+enum ResultKind {
+  BASELINE
+  SCENARIO
+}
+
+enum ResultStatus {
+  PASS
+  FAIL
+  NEEDS_REVIEW
+  ERROR
+}
+
+enum FailureOrigin {
+  TARGET_APP_FAILURE
+  GHOSTQA_ENGINE_FAILURE
+}
+
+enum ArtifactKind {
+  SCREENSHOT
+  TRACE
+}
+
+model Project {
+  id            String     @id @default(cuid())
+  name          String
+  targetBaseUrl String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  flows         Flow[]
+  scenarios     Scenario[]
+  testRuns      TestRun[]
+}
+
+model Flow {
+  id                   String     @id @default(cuid())
+  projectId            String
+  name                 String
+  criticalActionJson   String
+  successAssertionJson String
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  project              Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  steps                FlowStep[]
+  testRuns             TestRun[]
+
+  @@index([projectId])
+}
+
+model FlowStep {
+  id        String         @id @default(cuid())
+  flowId    String
+  position  Int
+  action    FlowStepAction
+  locator   String?
+  value     String?
+  url       String?
+  timeoutMs Int?
+  flow      Flow           @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@unique([flowId, position])
+}
+
+model Scenario {
+  id         String         @id @default(cuid())
+  projectId  String
+  name       String
+  family     ScenarioFamily
+  enabled    Boolean        @default(true)
+  configJson String         @default("{}")
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  results    TestResult[]
+
+  @@index([projectId, family])
+}
+
+model TestRun {
+  id          String        @id @default(cuid())
+  projectId   String
+  flowId      String
+  status      TestRunStatus @default(QUEUED)
+  createdAt   DateTime      @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  flow        Flow          @relation(fields: [flowId], references: [id], onDelete: Restrict)
+  results     TestResult[]
+
+  @@index([projectId, createdAt])
+  @@index([flowId])
+}
+
+model TestResult {
+  id            String         @id @default(cuid())
+  testRunId     String
+  scenarioId    String?
+  kind          ResultKind
+  status        ResultStatus
+  failureOrigin FailureOrigin?
+  summary       String
+  evidenceJson  String         @default("{}")
+  createdAt     DateTime       @default(now())
+  testRun       TestRun        @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  scenario      Scenario?      @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+  artifacts     Artifact[]
+
+  @@index([testRunId])
+  @@index([scenarioId])
+}
+
+model Artifact {
+  id           String       @id @default(cuid())
+  testResultId String
+  kind         ArtifactKind
+  relativePath String
+  mimeType     String
+  createdAt    DateTime     @default(now())
+  testResult   TestResult   @relation(fields: [testResultId], references: [id], onDelete: Cascade)
+
+  @@index([testResultId])
+}

@@ -60,4 +60,7 @@ Then use Codex to implement the project incrementally.
 
 ## Status
 
-Starter repository only. Implementation is intentionally left to the development phase.
+Phase 1 foundation is implemented: npm workspaces, the dashboard and server shells,
+the SQLite/Prisma schema and initial migration, shared contracts, the test-engine
+boundary, and target-host safety tests. Browser execution and the GhostShop Demo
+remain later-phase work.
