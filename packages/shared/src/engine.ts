@@ -1,6 +1,8 @@
 import type {
   FailureOrigin,
   JsonValue,
+  LocatorSpec,
+  NetworkRequestMatcher,
   NormalizedFlow,
   ResultStatus,
   ScenarioFamily,
@@ -23,13 +25,100 @@ export interface BaselineExecutionRequest extends BaseExecutionRequest {
   kind: "BASELINE";
 }
 
+export type ElementStateExpectation =
+  | "VISIBLE"
+  | "HIDDEN"
+  | "ENABLED"
+  | "DISABLED"
+  | "ATTRIBUTE_EQUALS";
+
+export interface ElementObservation {
+  locator: LocatorSpec;
+  state: ElementStateExpectation;
+  attribute?: string;
+  value?: string;
+  timeoutMs?: number;
+  stableForMs?: number;
+}
+
+interface CheckpointScenarioConfig {
+  checkpointStepId: string;
+}
+
+export interface DoubleActionScenarioConfig {
+  family: "DOUBLE_ACTION";
+  request?: NetworkRequestMatcher;
+  identifierField?: string;
+  responseTimeoutMs?: number;
+}
+
+export interface ApiFailureScenarioConfig extends CheckpointScenarioConfig {
+  family: "API_FAILURE";
+  request?: NetworkRequestMatcher;
+  statusCode: 500;
+  brokenState: ElementObservation;
+  recoveryState?: ElementObservation;
+  assertionTimeoutMs?: number;
+}
+
+export interface SlowResponseScenarioConfig extends CheckpointScenarioConfig {
+  family: "SLOW_RESPONSE";
+  request?: NetworkRequestMatcher;
+  delayMs: number;
+  repeatabilityObservation?: ElementObservation;
+  preventionObservation?: ElementObservation;
+}
+
+export interface NavigationScenarioConfig extends CheckpointScenarioConfig {
+  family: "REFRESH_BACK_NAVIGATION";
+  mode: "REFRESH" | "BACK";
+  expectedState: ElementObservation;
+  expectedUrl?: string;
+}
+
+export type SessionExpiryStrategy =
+  | {
+      kind: "INTERCEPT_REQUEST";
+      request?: NetworkRequestMatcher;
+      statusCode: 401;
+    }
+  | {
+      kind: "CLEAR_STORAGE";
+      cookieNames?: readonly string[];
+      localStorageKeys?: readonly string[];
+      sessionStorageKeys?: readonly string[];
+    };
+
+export interface SessionExpiryScenarioConfig extends CheckpointScenarioConfig {
+  family: "SESSION_EXPIRY";
+  strategy: SessionExpiryStrategy;
+  brokenState: ElementObservation;
+  recoveryState?: ElementObservation;
+  assertionTimeoutMs?: number;
+}
+
+export type ScenarioConfig =
+  | DoubleActionScenarioConfig
+  | ApiFailureScenarioConfig
+  | SlowResponseScenarioConfig
+  | NavigationScenarioConfig
+  | SessionExpiryScenarioConfig;
+
+export interface ScenarioDefinition {
+  id: string;
+  name: string;
+  family: ScenarioFamily;
+  config: ScenarioConfig;
+}
+
+export type BaselineValidationProof =
+  | { status: "PASS"; runId: string }
+  | { status: "NOT_VALIDATED" };
+
 export interface ScenarioExecutionRequest extends BaseExecutionRequest {
   kind: "SCENARIO";
-  scenario: {
-    id: string;
-    family: ScenarioFamily;
-    config: Readonly<Record<string, JsonValue>>;
-  };
+  baselineValidation: BaselineValidationProof;
+  scenario: ScenarioDefinition;
 }
 
 export type EngineExecutionRequest =
@@ -50,12 +139,32 @@ export interface NetworkObservation {
   failureText?: string;
   startedAt: string;
   completedAt?: string;
+  responseIdentifier?: string;
+}
+
+export type EvidenceEntryType =
+  | "HTTP_REQUEST"
+  | "HTTP_RESPONSE"
+  | "DUPLICATE_REQUEST"
+  | "CONSOLE_ERROR"
+  | "PAGE_ERROR"
+  | "ASSERTION"
+  | "ELEMENT_STATE"
+  | "NAVIGATION"
+  | "SCENARIO_INJECTION";
+
+export interface EvidenceEntry {
+  type: EvidenceEntryType;
+  message: string;
+  timestamp: string;
+  metadata?: Readonly<Record<string, JsonValue>>;
 }
 
 export interface ExecutionEvidence {
   finalUrl?: string;
   console: readonly ConsoleObservation[];
   network: readonly NetworkObservation[];
+  entries: readonly EvidenceEntry[];
 }
 
 export interface ArtifactDescriptor {
@@ -87,7 +196,7 @@ export interface ExecutionErrorObservation {
   stepId?: string;
 }
 
-interface BaseExecutionReport {
+export interface BaseExecutionReport {
   summary: string;
   evidence: ExecutionEvidence;
   artifacts: readonly ArtifactDescriptor[];
@@ -124,3 +233,17 @@ export type EngineExecutionReport =
   | FailedExecutionReport
   | ReviewExecutionReport
   | ErrorExecutionReport;
+
+interface ScenarioReportContext {
+  scenario: Pick<ScenarioDefinition, "id" | "name" | "family">;
+}
+
+export type ScenarioExecutionReport =
+  | (EngineExecutionReport &
+      ScenarioReportContext & { baselineValidation: "VALIDATED" })
+  | (BaseExecutionReport &
+      ScenarioReportContext & {
+        status: "BASELINE_REQUIRED";
+        baselineValidation: "REQUIRED";
+        failureOrigin?: never;
+      });

@@ -45,6 +45,19 @@ The opt-in real Chromium smoke test also expects GhostShop to be running:
 npm run demo:test:smoke
 ```
 
+## Run the behavioral scenarios
+
+With GhostShop still running, execute all five scenario families (six instances
+because Refresh and Back are separate):
+
+```bash
+npm run demo:scenarios
+npm run demo:test:scenarios
+```
+
+The runner validates the baseline, resets GhostShop before each scenario, and
+writes evidence under `artifacts/ghostshop/<run-id>/<scenario-id>/`.
+
 ## Fixture API
 
 - `POST /api/session` — deterministic login

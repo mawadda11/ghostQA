@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist-scenarios",
+    "rootDir": ".",
+    "sourceMap": true
+  },
+  "include": ["baseline/ghostshop-flow.ts", "scenarios/**/*.ts"]
+}

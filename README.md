@@ -63,15 +63,18 @@ Then use Codex to implement the project incrementally.
 ```bash
 npm run demo:dev
 npm run demo:baseline
+npm run demo:scenarios
 ```
 
-The baseline command expects GhostShop to be running, resets its state, executes
-the generic Chromium runner, and saves evidence under `artifacts/ghostshop/`.
+The baseline and scenario commands expect GhostShop to be running. The scenario
+runner first validates the baseline, resets fixture state between runs, executes
+all five generic scenario families, and saves evidence under
+`artifacts/ghostshop/`.
 
 ## Status
 
-Phase 2 is implemented: Phase 1 foundations remain intact, GhostShop provides the
-known-good checkout fixture and four documented seeded bugs, and the generic
-Playwright engine validates the normal baseline with screenshot, trace, network,
-console, final-URL, and assertion evidence. Failure scenario executors remain a
-later phase.
+Phase 3 is implemented: Phase 1 foundations and Phase 2 baseline validation
+remain intact. The generic engine now executes all five V1 behavioral scenario
+families in isolated Chromium contexts with controlled injection, structured
+evidence, deterministic classification, screenshots, and traces. GhostShop
+configuration remains outside the reusable engine.

@@ -3,16 +3,15 @@ import { mkdir } from "node:fs/promises";
 import type {
   ArtifactDescriptor,
   BaselineExecutionRequest,
-  ConsoleObservation,
   EngineExecutionReport,
   ExecutedStep,
   ExecutionErrorObservation,
-  NetworkObservation,
   SuccessAssertionResult,
 } from "@ghostqa/shared";
 import { chromium } from "playwright";
-import type { Browser, BrowserContext, Page, Request } from "playwright";
+import type { Browser, BrowserContext, Page } from "playwright";
 
+import { BrowserEvidenceCollector } from "../runtime/browser-evidence.js";
 import { createBaselineArtifactPaths } from "./artifacts.js";
 import { classifyBaselineResult } from "./classification.js";
 import { executeFlowStep } from "./steps.js";
@@ -36,61 +35,6 @@ const toExecutionError = (
     ...normalized,
     ...(stepId === undefined ? {} : { stepId }),
   };
-};
-
-const attachObservers = (
-  page: Page,
-  network: NetworkObservation[],
-  consoleErrors: ConsoleObservation[],
-): void => {
-  const requestStartTimes = new Map<Request, string>();
-
-  page.on("request", (request) => {
-    requestStartTimes.set(request, nowIso());
-  });
-
-  page.on("response", (response) => {
-    const request = response.request();
-    network.push({
-      method: request.method(),
-      url: request.url(),
-      status: response.status(),
-      startedAt: requestStartTimes.get(request) ?? nowIso(),
-      completedAt: nowIso(),
-    });
-    requestStartTimes.delete(request);
-  });
-
-  page.on("requestfailed", (request) => {
-    network.push({
-      method: request.method(),
-      url: request.url(),
-      failureText: request.failure()?.errorText ?? "Request failed",
-      startedAt: requestStartTimes.get(request) ?? nowIso(),
-      completedAt: nowIso(),
-    });
-    requestStartTimes.delete(request);
-  });
-
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      consoleErrors.push({
-        source: "CONSOLE",
-        level: "error",
-        text: message.text(),
-        timestamp: nowIso(),
-      });
-    }
-  });
-
-  page.on("pageerror", (error) => {
-    consoleErrors.push({
-      source: "PAGE_ERROR",
-      level: "error",
-      text: error.message,
-      timestamp: nowIso(),
-    });
-  });
 };
 
 const summaryFor = (
@@ -117,8 +61,7 @@ export class PlaywrightBaselineEngine {
   ): Promise<EngineExecutionReport> {
     const startedAt = nowIso();
     const startedAtMs = Date.now();
-    const network: NetworkObservation[] = [];
-    const consoleErrors: ConsoleObservation[] = [];
+    const collector = new BrowserEvidenceCollector();
     const artifacts: ArtifactDescriptor[] = [];
     const executedSteps: ExecutedStep[] = [];
     let assertion: SuccessAssertionResult = {
@@ -148,7 +91,7 @@ export class PlaywrightBaselineEngine {
       });
       tracingStarted = true;
       page = await context.newPage();
-      attachObservers(page, network, consoleErrors);
+      collector.attach(page);
 
       for (const step of request.flow.steps) {
         const stepStartedAt = nowIso();
@@ -251,8 +194,9 @@ export class PlaywrightBaselineEngine {
       ),
       evidence: {
         ...(page === undefined ? {} : { finalUrl: page.url() }),
-        console: consoleErrors,
-        network,
+        console: collector.console,
+        network: collector.network,
+        entries: [],
       },
       artifacts,
       executedSteps,

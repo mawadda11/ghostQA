@@ -1,6 +1,8 @@
 import type {
   BaselineExecutionRequest,
   EngineExecutionReport,
+  ScenarioExecutionReport,
+  ScenarioExecutionRequest,
 } from "@ghostqa/shared";
 
 export { PlaywrightBaselineEngine } from "./baseline/runner.js";
@@ -11,10 +13,36 @@ export {
   BaselineValidationError,
   validateBaselineRequest,
 } from "./baseline/validation.js";
+export { PlaywrightScenarioEngine } from "./scenario/runner.js";
+export {
+  classifyApiFailure,
+  classifyDoubleAction,
+  classifyNavigation,
+  classifySessionExpiry,
+  classifySlowResponse,
+} from "./scenario/classification.js";
+export {
+  createEvidenceEntry,
+  consoleEvidenceEntries,
+} from "./scenario/evidence.js";
+export {
+  ScenarioValidationError,
+  validateScenarioRequest,
+} from "./scenario/validation.js";
 
 /** Persistence-free baseline execution boundary used by orchestration code. */
 export interface TestEngine {
   execute(request: BaselineExecutionRequest): Promise<EngineExecutionReport>;
 }
 
-export type { BaselineExecutionRequest, EngineExecutionReport };
+/** Persistence-free behavioral scenario boundary used by orchestration code. */
+export interface ScenarioTestEngine {
+  execute(request: ScenarioExecutionRequest): Promise<ScenarioExecutionReport>;
+}
+
+export type {
+  BaselineExecutionRequest,
+  EngineExecutionReport,
+  ScenarioExecutionReport,
+  ScenarioExecutionRequest,
+};

@@ -19,6 +19,8 @@
     "demo:dev": "npm run dev --workspace @ghostqa/demo-target",
     "demo:baseline": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine && npm run baseline --workspace @ghostqa/demo-target",
     "demo:test:smoke": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine && npm run test:smoke --workspace @ghostqa/demo-target",
+    "demo:scenarios": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine && npm run scenarios --workspace @ghostqa/demo-target",
+    "demo:test:scenarios": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine && npm run test:scenarios --workspace @ghostqa/demo-target",
     "playwright:install": "npm run playwright:install --workspace @ghostqa/test-engine"
   },
   "devDependencies": {
