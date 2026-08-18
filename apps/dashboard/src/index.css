@@ -21,9 +21,43 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: #020617;
 }
 
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+}
+
+button,
+summary,
+a,
+input,
+textarea {
+  transition-duration: 150ms;
+  transition-property: color, background-color, border-color, opacity;
+}
+
+button:focus-visible,
+summary:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgb(103 232 249 / 25%);
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border: 2px solid #0f172a;
+  border-radius: 999px;
 }

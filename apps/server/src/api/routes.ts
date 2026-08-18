@@ -24,7 +24,7 @@ import {
   updateProject,
 } from "../services/projects.js";
 import { getResult } from "../services/results.js";
-import { getRunDetail, listProjectRuns } from "../services/runs.js";
+import { getRunDetail, listProjectRuns, listRuns } from "../services/runs.js";
 import {
   listFlowScenarios,
   updateScenario,
@@ -207,6 +207,10 @@ export const createApiRouter = (options: ApiRouterOptions): Router => {
         routeParam(request.params["projectId"], "Project"),
       ),
     );
+  });
+
+  router.get("/runs", async (_request, response) => {
+    response.json(await listRuns(options.prisma));
   });
 
   router.get("/runs/:runId", async (request, response) => {

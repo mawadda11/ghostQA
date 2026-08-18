@@ -16,7 +16,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:generate": "npm run prisma:generate --workspace @ghostqa/server",
     "db:migrate": "npm run prisma:migrate --workspace @ghostqa/server",
-    "server:dev": "npm run dev --workspace @ghostqa/server",
+    "server:dev": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine && npm run dev --workspace @ghostqa/server",
+    "dashboard:dev": "npm run dev --workspace @ghostqa/dashboard",
     "demo:dev": "npm run dev --workspace @ghostqa/demo-target",
     "demo:baseline": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine && npm run baseline --workspace @ghostqa/demo-target",
     "demo:test:smoke": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine && npm run test:smoke --workspace @ghostqa/demo-target",
@@ -25,6 +26,7 @@
     "demo:seed": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine --workspace @ghostqa/server && npm run seed --workspace @ghostqa/demo-target",
     "demo:persisted-run": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine --workspace @ghostqa/server && npm run persisted-run --workspace @ghostqa/demo-target",
     "demo:test:persisted-run": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine --workspace @ghostqa/server && npm run test:persisted-run --workspace @ghostqa/demo-target",
+    "demo:test:dashboard": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine --workspace @ghostqa/server && npm run test:dashboard --workspace @ghostqa/demo-target",
     "playwright:install": "npm run playwright:install --workspace @ghostqa/test-engine"
   },
   "devDependencies": {

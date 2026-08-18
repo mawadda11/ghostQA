@@ -141,6 +141,10 @@ export interface TestRunHistoryItem {
   completedAt?: string;
 }
 
+export interface GlobalTestRunHistoryItem extends TestRunHistoryItem {
+  projectName: string;
+}
+
 export interface TestRunDetail extends TestRunHistoryItem {
   errorMessage?: string;
   baselineResult?: PersistedTestResult;

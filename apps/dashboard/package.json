@@ -6,20 +6,29 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint src vite.config.ts",
+    "test": "vitest run",
+    "lint": "eslint src vite.config.ts vitest.config.ts",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@ghostqa/shared": "0.1.0",
+    "@tanstack/react-query": "^5.101.4",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20.19.43",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^5.0.4",
+    "jsdom": "^26.1.0",
     "tailwindcss": "^4.3.3",
-    "vite": "^6.4.3"
+    "vite": "^6.4.3",
+    "vitest": "^3.2.7"
   }
 }

@@ -16,6 +16,7 @@ import { createFlow, getFlow } from "./flows.js";
 import { RunOrchestrator } from "./orchestrator.js";
 import { createProject, deleteProject } from "./projects.js";
 import { getResult, persistExecutionReport } from "./results.js";
+import { listRuns } from "./runs.js";
 import { listFlowScenarios, upsertScenarioPlan } from "./scenarios.js";
 
 const allowedHosts = new Set(["localhost", "127.0.0.1"]);
@@ -313,6 +314,13 @@ describe.sequential("Phase 4 persistence and orchestration", () => {
       expect(detail.scenarioResults).toHaveLength(1);
       expect(executionOrder).toEqual(["baseline", "Double Action"]);
       expect(await prisma.testResult.count({ where: { testRunId: detail.id } })).toBe(2);
+      expect(await listRuns(prisma)).toContainEqual(
+        expect.objectContaining({
+          id: detail.id,
+          projectName: fixture.project.name,
+          flowName: fixture.flow.name,
+        }),
+      );
     } finally {
       await deleteProject(prisma, fixture.project.id);
     }

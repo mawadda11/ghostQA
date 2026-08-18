@@ -59,7 +59,7 @@ Read:
 
 Then use Codex to implement the project incrementally.
 
-## Local Phase 4 workflow
+## Local V1 workflow
 
 Install dependencies and apply the checked-in SQLite migrations:
 
@@ -68,20 +68,31 @@ npm install
 npm run db:migrate
 ```
 
-Run GhostShop, then the GhostQA server, in separate terminals:
+Run the three applications in separate terminals:
 
 ```bash
+# Terminal 1: controlled target fixture
 npm run demo:dev
+
+# Terminal 2: API, orchestration, and persistence
 npm run server:dev
+
+# Terminal 3: dashboard
+npm run dashboard:dev
 ```
 
-Seed the demo configuration and execute a real persisted run from a third
+With GhostShop and the server running, seed the demo configuration from another
 terminal:
 
 ```bash
 npm run demo:seed
-npm run demo:persisted-run
 ```
+
+Open `http://127.0.0.1:5173`, select GhostShop, open its baseline flow, and use
+**Run tests**. The dashboard invokes the real server orchestrator and reopens
+results from SQLite after refresh. `npm run demo:persisted-run` remains available
+for a command-line backend demonstration, and `npm run demo:test:dashboard`
+runs the opt-in real Chromium dashboard proof when all three apps are running.
 
 The default local ports are `4173` for GhostShop, `4000` for the API, and `5173`
 for the Vite dashboard. The SQLite database is
@@ -90,6 +101,7 @@ for the Vite dashboard. The SQLite database is
 paths. Both locations are ignored by git.
 
 Use `GHOSTSHOP_PORT`, `GHOSTSHOP_URL`, `PORT`, `GHOSTQA_SERVER_URL`,
+`VITE_GHOSTQA_API_URL`,
 `ALLOWED_TARGET_HOSTS`, `DASHBOARD_ORIGINS`, and `ARTIFACTS_ROOT` to override
 local defaults. `GHOSTSHOP_URL` used by the demo commands must match the target
 saved through the API.
@@ -103,8 +115,9 @@ npm run demo:scenarios
 
 ## Status
 
-Phase 4 is implemented: the Express application persists projects, normalized
-flows, deterministic scenario plans, runs, structured results, and artifact
-metadata through Prisma/SQLite. It orchestrates the existing generic Playwright
-baseline and scenario engines sequentially and exposes read APIs for the Phase 5
-dashboard. GhostShop configuration remains outside the reusable engine.
+GhostQA V1 through Phase 5 is implemented. The dashboard manages projects,
+imports normalized flows and explicit scenario plans, starts real browser runs,
+and presents persisted evidence, screenshots, and trace downloads from the
+Express/Prisma backend. GhostShop is only the controlled, deliberately buggy
+demo target; the dashboard, server services, contracts, and Playwright engine
+remain generic.

@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type {
+  GlobalTestRunHistoryItem,
   TestRunDetail,
   TestRunHistoryItem,
 } from "@ghostqa/shared";
@@ -80,6 +81,19 @@ export const listProjectRuns = async (
     })
   ).map(toRunHistoryItem);
 };
+
+export const listRuns = async (
+  prisma: PrismaClient,
+): Promise<GlobalTestRunHistoryItem[]> =>
+  (
+    await prisma.testRun.findMany({
+      include: { flow: true, project: true },
+      orderBy: { createdAt: "desc" },
+    })
+  ).map((run) => ({
+    ...toRunHistoryItem(run),
+    projectName: run.project.name,
+  }));
 
 export const getRunDetail = async (
   prisma: PrismaClient,

@@ -8,6 +8,7 @@
   },
   "include": [
     "baseline/**/*.ts",
+    "dashboard/**/*.ts",
     "scenarios/**/*.ts",
     "persistence/**/*.ts"
   ]

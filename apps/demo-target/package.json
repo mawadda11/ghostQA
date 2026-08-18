@@ -15,7 +15,8 @@
     "seed": "npm run build:scenarios && node dist-scenarios/persistence/seed.js",
     "persisted-run": "npm run build:scenarios && node dist-scenarios/persistence/run-persisted.js",
     "test:persisted-run": "npm run build:scenarios && node --test dist-scenarios/persistence/persisted-run.integration.test.js",
-    "lint": "eslint src server baseline scenarios persistence vite.config.ts",
+    "test:dashboard": "npm run build:scenarios && node --test dist-scenarios/dashboard/dashboard.integration.test.js",
+    "lint": "eslint src server baseline scenarios persistence dashboard vite.config.ts",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^5.0.4",
+    "playwright": "^1.62.1",
     "tsx": "^4.23.12",
     "vite": "^6.4.3"
   }
