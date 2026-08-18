@@ -1,5 +1,5 @@
 import type { ArtifactMetadata } from "@ghostqa/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { artifactUrl } from "../api/runs.js";
 
@@ -12,6 +12,20 @@ export const ScreenshotViewer = ({
   const [failed, setFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const source = artifactUrl(artifact.id);
+
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [expanded]);
 
   if (failed) {
     return (
@@ -53,9 +67,11 @@ export const ScreenshotViewer = ({
           aria-label="Expanded browser screenshot"
           aria-modal="true"
           className="fixed inset-0 z-50 grid place-items-center overflow-auto bg-slate-950/95 p-4 sm:p-8"
+          onClick={() => setExpanded(false)}
           role="dialog"
         >
           <button
+            autoFocus
             className="fixed right-4 top-4 z-10 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
             onClick={() => setExpanded(false)}
             type="button"
@@ -65,6 +81,7 @@ export const ScreenshotViewer = ({
           <img
             alt="Expanded browser screenshot captured by GhostQA"
             className="h-auto max-w-full rounded-lg border border-slate-700 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
             src={source}
           />
         </div>
@@ -72,4 +89,3 @@ export const ScreenshotViewer = ({
     </>
   );
 };
-

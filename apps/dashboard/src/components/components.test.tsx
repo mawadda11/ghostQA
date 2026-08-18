@@ -1,8 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { ApiClientError } from "../api/client.js";
 import { ErrorState } from "./AsyncState.js";
+import { ScreenshotViewer } from "./ScreenshotViewer.js";
 import { StatusBadge } from "./StatusBadge.js";
 import { SummaryCounts } from "./SummaryCounts.js";
 
@@ -36,5 +38,28 @@ describe("shared dashboard components", () => {
       "Target hostname is not allowlisted.",
     );
   });
-});
 
+  it("closes the expanded screenshot with Escape", async () => {
+    const user = userEvent.setup();
+    render(
+      <ScreenshotViewer
+        artifact={{
+          id: "artifact-one",
+          kind: "SCREENSHOT",
+          mimeType: "image/png",
+          downloadUrl: "/api/artifacts/artifact-one",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        }}
+      />,
+    );
+    fireEvent.load(
+      screen.getByAltText("Browser screenshot captured by GhostQA"),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Open screenshot at full size" }),
+    );
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});

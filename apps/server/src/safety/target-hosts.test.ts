@@ -36,9 +36,9 @@ describe("assertTargetUrlAllowed", () => {
   );
 
   it.each([
-    "http://localhost:5173/checkout",
+    "http://localhost:5173/workflow",
     "http://127.0.0.1:3000",
-    "https://staging.example.com/orders?recent=true",
+    "https://staging.example.com/activity?recent=true",
   ])("accepts an exact allowlisted HTTP(S) host: %s", (target) => {
     expect(assertTargetUrlAllowed(target, allowedHosts).href).toBe(
       new URL(target).href,

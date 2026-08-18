@@ -26,8 +26,10 @@ const responseTone = (status?: number): string => {
 export const ResultDetailPage = () => {
   const { resultId = "" } = useParams();
   const result = useQuery({ queryKey: ["result", resultId], queryFn: () => getResult(resultId), enabled: resultId.length > 0 });
-  const run = useQuery({ queryKey: ["run", result.data?.testRunId], queryFn: () => getRun(result.data!.testRunId), enabled: result.data !== undefined });
-  const project = useQuery({ queryKey: ["project", run.data?.projectId], queryFn: () => getProject(run.data!.projectId), enabled: run.data !== undefined });
+  const testRunId = result.data?.testRunId;
+  const run = useQuery({ queryKey: ["run", testRunId], queryFn: () => getRun(testRunId ?? ""), enabled: testRunId !== undefined });
+  const projectId = run.data?.projectId;
+  const project = useQuery({ queryKey: ["project", projectId], queryFn: () => getProject(projectId ?? ""), enabled: projectId !== undefined });
 
   if (result.isPending || run.isPending || project.isPending) return <LoadingState label="Loading execution evidence…" />;
   if (result.isError || run.isError || project.isError) return <ErrorState error={result.error ?? run.error ?? project.error} onRetry={() => { void result.refetch(); void run.refetch(); void project.refetch(); }} />;
@@ -75,4 +77,3 @@ export const ResultDetailPage = () => {
     </div>
   );
 };
-

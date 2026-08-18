@@ -12,6 +12,7 @@
     "scenarios/**/*.ts",
     "persistence/**/*.ts",
     "dashboard/**/*.ts",
+    "support/**/*.ts",
     "vite.config.ts"
   ]
 }

@@ -9,10 +9,10 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "lint": "eslint src",
+    "lint": "eslint src scripts",
     "typecheck": "tsc -p tsconfig.json",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "node scripts/ensure-sqlite.mjs && prisma migrate dev"
   },
   "dependencies": {
     "@ghostqa/shared": "0.1.0",

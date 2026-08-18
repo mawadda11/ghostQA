@@ -2,122 +2,210 @@
 
 **Adaptive Web Behavior Testing Platform**
 
-GhostQA is a software testing platform that takes a known-good web application flow, generates relevant failure/behavior scenarios, executes them in a real browser, and reports evidence-backed PASS / FAIL / NEEDS_REVIEW results.
+GhostQA starts from a known-good web journey, replays it under controlled
+failure and user-behavior conditions in a real Chromium browser, and produces
+evidence-backed `PASS`, `FAIL`, `NEEDS_REVIEW`, or `ERROR` results.
 
-## Core idea
+GhostQA V1 is implemented and ready for local or explicitly allowlisted staging
+demonstration. It is not presented as a production scanning service.
 
-Traditional tests usually validate scenarios developers already thought about. GhostQA focuses on realistic behavior and runtime failure conditions around a known-good flow, such as:
+![GhostQA workspace overview](docs/images/overview.png)
 
-- double action / duplicate submission
-- API failure
-- slow API response
-- refresh or back-navigation at critical checkpoints
-- session expiry
+## Why it exists
 
-GhostQA does not replace unit, integration, or traditional end-to-end tests. It adds a behavioral/failure-testing layer above them.
+A traditional end-to-end test proves that an expected happy path works. It
+usually says less about rapid duplicate input, failed or delayed APIs,
+navigation at a critical checkpoint, or an expired session. GhostQA adds that
+behavioral and fault-testing layer without replacing unit, integration, or
+ordinary E2E tests.
 
-## V1 scope
+## How it works
 
-- Web applications only
-- Chromium only
-- localhost or explicitly allowlisted staging hosts
-- Playwright-based browser automation
-- deterministic testing engine; no LLM dependency in V1
-- five scenario families only
-- local SQLite database
-- React + TypeScript dashboard
-- Node.js + TypeScript + Express backend
-
-## Repository layout
-
-```text
-ghostqa/
-├── apps/
-│   ├── dashboard/      # GhostQA UI
-│   ├── server/         # API + orchestration
-│   └── demo-target/    # GhostShop deliberately buggy demo app
-├── packages/
-│   ├── test-engine/    # Playwright execution engine
-│   └── shared/         # Shared types/schemas
-├── docs/
-├── artifacts/          # Local screenshots/traces; ignored by git
-└── README.md
+```mermaid
+flowchart LR
+    B[Known-good baseline] --> V[Validate baseline]
+    V --> M[Apply configured scenario mutation]
+    M --> C[Run in isolated Chromium context]
+    C --> O[Observe browser and network behavior]
+    O --> R[Classify conservatively]
+    R --> P[Persist evidence and artifact metadata]
+    P --> D[Inspect in dashboard]
 ```
 
-## Demo target
+Every full run validates the baseline first. A failed baseline is persisted and
+stops scenario execution. Enabled scenarios then run sequentially in isolated
+browser contexts. Deterministic classifiers use observed evidence; ambiguous
+behavior becomes `NEEDS_REVIEW`, never invented certainty.
 
-**GhostShop Demo** is intentionally seeded with known behavioral bugs so
-GhostQA can prove it detects real failures.
+## V1 scenarios
 
-## Start here
+GhostQA V1 supports exactly five scenario families:
 
-Read:
+- **Double Action** — triggers the critical action twice immediately and checks
+  for confirmed duplicate mutations.
+- **API Failure** — returns HTTP 500 for a configured request and checks explicit
+  broken or recovery states.
+- **Slow Response** — delays a configured request and observes repeatability,
+  prevention, mutation count, and final state.
+- **Refresh / Back Navigation** — refreshes or navigates back at a configured
+  checkpoint and verifies expected state. Refresh and Back are separate
+  instances of this family.
+- **Session Expiry** — injects HTTP 401 or clears configured browser state and
+  checks recovery behavior.
 
-1. `docs/PROJECT_SCOPE.md`
-2. `docs/ARCHITECTURE.md`
-3. `AGENTS.md`
+## Tech stack
 
-Then use Codex to implement the project incrementally.
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS, TanStack Query
+- **Backend:** Node.js, TypeScript, Express, Zod
+- **Database:** SQLite with Prisma
+- **Browser automation:** Playwright with Chromium
+- **Testing:** Vitest, Testing Library, Node test runner, Playwright
+- **Repository:** npm workspaces
 
-## Local V1 workflow
+## Architecture
 
-Install dependencies and apply the checked-in SQLite migrations:
+```text
+apps/dashboard       React dashboard and typed API client
+apps/server          Express API, validation, orchestration, Prisma, artifacts
+apps/demo-target     GhostShop controlled fixture and real-browser proofs
+packages/shared      Stable cross-workspace TypeScript contracts
+packages/test-engine Persistence-free Playwright baseline/scenario engine
+```
+
+Dependency direction and runtime details are documented in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Quick start
+
+Requirements: Node.js 20 or newer and npm.
 
 ```bash
 npm install
+npm run playwright:install
 npm run db:migrate
 ```
 
-Run the three applications in separate terminals:
+Start the three applications in separate terminals:
 
 ```bash
-# Terminal 1: controlled target fixture
+# Terminal 1 — deliberately buggy target fixture
 npm run demo:dev
 
-# Terminal 2: API, orchestration, and persistence
+# Terminal 2 — GhostQA API and execution orchestration
 npm run server:dev
 
-# Terminal 3: dashboard
+# Terminal 3 — GhostQA dashboard
 npm run dashboard:dev
 ```
 
-With GhostShop and the server running, seed the demo configuration from another
-terminal:
+With GhostShop and the server running, seed its project, flow, and six scenario
+instances idempotently:
 
 ```bash
 npm run demo:seed
 ```
 
-Open `http://127.0.0.1:5173`, select GhostShop, open its baseline flow, and use
-**Run tests**. The dashboard invokes the real server orchestrator and reopens
-results from SQLite after refresh. `npm run demo:persisted-run` remains available
-for a command-line backend demonstration, and `npm run demo:test:dashboard`
-runs the opt-in real Chromium dashboard proof when all three apps are running.
+Open `http://127.0.0.1:5173`, select GhostShop, open its flow, and choose
+**Run tests**.
 
-The default local ports are `4173` for GhostShop, `4000` for the API, and `5173`
-for the Vite dashboard. The SQLite database is
-`apps/server/prisma/dev.db`. Screenshots and traces are stored as files below
-`artifacts/runs/<run-id>/`; SQLite stores only validated metadata and relative
-paths. Both locations are ignored by git.
+Default ports and local storage:
 
-Use `GHOSTSHOP_PORT`, `GHOSTSHOP_URL`, `PORT`, `GHOSTQA_SERVER_URL`,
-`VITE_GHOSTQA_API_URL`,
-`ALLOWED_TARGET_HOSTS`, `DASHBOARD_ORIGINS`, and `ARTIFACTS_ROOT` to override
-local defaults. `GHOSTSHOP_URL` used by the demo commands must match the target
-saved through the API.
+| Component | Default |
+| --- | --- |
+| GhostShop fixture | `http://127.0.0.1:4173` |
+| GhostQA API | `http://127.0.0.1:4000` |
+| Dashboard | `http://127.0.0.1:5173` |
+| SQLite | `apps/server/prisma/dev.db` |
+| Screenshots/traces | `artifacts/runs/<run-id>/` |
 
-The direct Phase 2 and Phase 3 engine demonstrations remain available:
+All defaults work without an `.env` file. See [.env.example](.env.example) for
+optional ports, CORS origins, target hosts, API URL, and artifact-root settings.
+The SQLite file and ordinary runtime artifacts are ignored by Git.
 
-```bash
-npm run demo:baseline
-npm run demo:scenarios
+## GhostShop demo
+
+GhostShop is a separate, deliberately buggy storefront fixture. It is not the
+GhostQA product. Its public fixture credentials are `demo@ghostqa.dev` /
+`ghost123`.
+
+It contains four deterministic defects:
+
+1. duplicate orders from rapid confirmation;
+2. broken recovery after HTTP 500;
+3. checkout state loss after refresh;
+4. broken recovery after session expiry.
+
+The fixture configuration supplies all GhostShop routes, copy, selectors,
+credentials, and expected observations. None are built into the reusable
+engine, API services, or dashboard.
+
+## Example real result
+
+One actual local GhostShop run produced:
+
+```text
+Baseline: PASS
+Double Action: FAIL
+API Failure: FAIL
+Slow Response: NEEDS_REVIEW
+Refresh: FAIL
+Back: PASS
+Session Expiry: FAIL
 ```
 
-## Status
+These are observed demo results, not hard-coded product behavior.
 
-GhostQA V1 through Phase 5 is implemented. The dashboard manages projects,
-imports normalized flows and explicit scenario plans, starts real browser runs,
-and presents persisted evidence, screenshots, and trace downloads from the
-Express/Prisma backend. GhostShop is only the controlled, deliberately buggy
-demo target; the dashboard, server services, contracts, and Playwright engine
-remain generic.
+![Persisted run details](docs/images/run-detail.png)
+
+## Evidence
+
+Each result can include structured injection/assertion entries, network status
+and timing, console/page errors, final URL, executed steps, assertion outcome,
+a screenshot, and a Playwright trace. SQLite stores validated JSON and artifact
+metadata; screenshot and trace binaries stay on disk. The dashboard requests
+artifacts by database ID through a path-contained server endpoint.
+
+![Failed scenario evidence](docs/images/result-evidence.png)
+
+## Safety
+
+Targets are restricted to `localhost`, `127.0.0.1`, or exact staging hosts
+explicitly configured in `ALLOWED_TARGET_HOSTS`. HTTP(S) is required, embedded
+URL credentials are rejected, request bodies are not captured as evidence, and
+scenario configuration is validated data rather than executable JavaScript.
+GhostQA V1 is not a crawler, vulnerability scanner, load tester, or public-site
+scanning service.
+
+## V1 limitations
+
+- Chromium only
+- sequential, in-process execution
+- local SQLite and filesystem artifacts
+- localhost or explicitly allowlisted staging targets
+- normalized JSON import instead of a custom browser recorder
+- no AI or LLM scenario generation
+- no CI/CD integration, scheduling, queues, or distributed workers
+- no GhostQA accounts, teams, or hosted deployment
+
+## Development commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dashboard:dev` | Start the dashboard |
+| `npm run server:dev` | Build shared packages and start the API |
+| `npm run demo:dev` | Start GhostShop |
+| `npm run db:migrate` | Apply checked-in Prisma migrations |
+| `npm run db:status` | Show Prisma migration status |
+| `npm run demo:seed` | Seed GhostShop idempotently |
+| `npm run demo:baseline` | Run the direct baseline demonstration |
+| `npm run demo:scenarios` | Run all direct scenario demonstrations |
+| `npm run demo:persisted-run` | Run through the persisted backend |
+| `npm run demo:test:baseline` | Real Chromium baseline proof |
+| `npm run demo:test:scenarios` | Real Chromium scenario proof |
+| `npm run demo:test:persisted-run` | Real persistence/API browser proof |
+| `npm run demo:test:dashboard` | Real dashboard workflow proof |
+| `npm run verify` | Fast tests, lint, strict typecheck, and build |
+| `npm run verify:e2e` | All real Chromium proofs; services must be running |
+
+See [docs/PORTFOLIO.md](docs/PORTFOLIO.md) for a concise project and interview
+summary.

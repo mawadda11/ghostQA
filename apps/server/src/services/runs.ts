@@ -53,16 +53,11 @@ export const toRunHistoryItem = (
 
 export const toRunDetail = (run: RunDetailRecord): TestRunDetail => {
   const results = run.results.map(toPersistedTestResult);
+  const baselineResult = results.find((result) => result.kind === "BASELINE");
   return {
     ...toRunHistoryItem(run),
     ...(run.errorMessage === null ? {} : { errorMessage: run.errorMessage }),
-    ...(results.find((result) => result.kind === "BASELINE") === undefined
-      ? {}
-      : {
-          baselineResult: results.find(
-            (result) => result.kind === "BASELINE",
-          )!,
-        }),
+    ...(baselineResult === undefined ? {} : { baselineResult }),
     scenarioResults: results.filter((result) => result.kind === "SCENARIO"),
   };
 };

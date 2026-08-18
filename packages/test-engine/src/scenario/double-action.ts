@@ -56,10 +56,12 @@ export class DoubleActionExecutor implements ScenarioExecutor {
       )
     ).filter((value): value is string => value !== undefined);
     const distinctIdentifiers = new Set(identifiers);
+    const firstResponse = responses[0];
+    const lastResponse = responses.at(-1);
     const observedWindowMs =
-      responses.length < 2
+      firstResponse === undefined || lastResponse === undefined
         ? undefined
-        : responses.at(-1)!.observedAtMs - responses[0]!.observedAtMs;
+        : lastResponse.observedAtMs - firstResponse.observedAtMs;
     context.evidence.push(
       createEvidenceEntry(
         "DUPLICATE_REQUEST",

@@ -78,6 +78,9 @@ Do not implement in V1:
 - load testing
 - visual regression platform
 
-## Definition of Done
+## V1 completion criteria
 
-The MVP is complete when GhostQA can run against GhostShop Demo, detect at least the seeded duplicate-order and broken-API-failure behaviors, store real evidence, and reopen previous run results from the dashboard.
+V1 is complete when GhostQA can validate the GhostShop baseline, execute all six
+configured instances across the five scenario families, detect the four seeded
+defects with real evidence, persist results and artifact metadata, and reopen
+the complete run from the dashboard after refresh.

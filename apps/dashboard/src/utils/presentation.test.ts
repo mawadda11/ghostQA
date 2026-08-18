@@ -50,9 +50,8 @@ describe("dashboard result presentation", () => {
   });
 
   it("uses a compact network path without losing query context", () => {
-    expect(networkPath("http://127.0.0.1:4173/api/orders?retry=1")).toBe(
-      "/api/orders?retry=1",
+    expect(networkPath("http://127.0.0.1:4173/api/submissions?retry=1")).toBe(
+      "/api/submissions?retry=1",
     );
   });
 });
-

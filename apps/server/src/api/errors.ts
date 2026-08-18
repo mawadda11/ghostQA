@@ -23,6 +23,13 @@ export class ApiError extends Error {
 export const notFound = (resource: string): ApiError =>
   new ApiError(404, "NOT_FOUND", `${resource} was not found.`);
 
+const isMalformedJsonError = (error: unknown): boolean =>
+  error instanceof SyntaxError &&
+  typeof error === "object" &&
+  error !== null &&
+  "type" in error &&
+  error.type === "entity.parse.failed";
+
 const invalidRequestMessage = (error: ZodError): string => {
   const issue = error.issues[0];
   if (issue === undefined) return "The request body is invalid.";
@@ -39,6 +46,12 @@ export const errorHandler: ErrorRequestHandler = (
   let apiError: ApiError;
   if (error instanceof ApiError) {
     apiError = error;
+  } else if (isMalformedJsonError(error)) {
+    apiError = new ApiError(
+      400,
+      "INVALID_REQUEST",
+      "The request body must contain valid JSON.",
+    );
   } else if (error instanceof ZodError) {
     apiError = new ApiError(
       400,

@@ -12,7 +12,7 @@ describe("evaluateSuccessAssertion", () => {
 
     const result = await evaluateSuccessAssertion(page, {
       kind: "TEXT_VISIBLE",
-      text: "Checkout complete",
+      text: "Operation complete",
       exact: true,
     });
 

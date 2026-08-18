@@ -45,7 +45,8 @@ const ResultRow = ({ result }: { result: PersistedTestResult }) => {
 export const RunDetailPage = () => {
   const { runId = "" } = useParams();
   const run = useQuery({ queryKey: ["run", runId], queryFn: () => getRun(runId), enabled: runId.length > 0 });
-  const project = useQuery({ queryKey: ["project", run.data?.projectId], queryFn: () => getProject(run.data!.projectId), enabled: run.data !== undefined });
+  const projectId = run.data?.projectId;
+  const project = useQuery({ queryKey: ["project", projectId], queryFn: () => getProject(projectId ?? ""), enabled: projectId !== undefined });
 
   if (run.isPending || project.isPending) return <LoadingState label="Loading run results…" />;
   if (run.isError || project.isError) return <ErrorState error={run.error ?? project.error} onRetry={() => { void run.refetch(); void project.refetch(); }} />;
@@ -86,4 +87,3 @@ export const RunDetailPage = () => {
     </div>
   );
 };
-

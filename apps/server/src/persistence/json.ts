@@ -39,5 +39,7 @@ export const parseValidatedJson = <T>(
       `${label} failed validation: ${parsed.error.issues[0]?.message ?? "unknown validation error"}`,
     );
   }
+  // The caller supplies T alongside the matching boundary schema. Returning is
+  // safe only after that schema has parsed the unknown persisted value.
   return parsed.data as T;
 };

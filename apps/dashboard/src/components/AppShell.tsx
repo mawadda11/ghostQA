@@ -69,7 +69,11 @@ export const AppShell = () => {
               </NavLink>
               <span className="flex items-center gap-2 text-xs text-slate-400">
                 <span className={`size-2 rounded-full ${connection.color}`} />
-                {health.isSuccess ? "Connected" : "Offline"}
+                {health.isPending
+                  ? "Checking"
+                  : health.isSuccess
+                    ? "Connected"
+                    : "Offline"}
               </span>
             </div>
             <nav aria-label="Primary mobile" className="mt-3 flex gap-1 overflow-x-auto">
@@ -88,4 +92,3 @@ export const AppShell = () => {
     </div>
   );
 };
-

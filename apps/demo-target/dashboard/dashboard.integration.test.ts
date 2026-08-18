@@ -1,28 +1,13 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import type { ProjectSummary, TestRunDetail } from "@ghostqa/shared";
 import { chromium } from "playwright";
 
 import { seedGhostShop } from "../persistence/seed-ghostshop.js";
-
-const repositoryRootFromModule = (): string => {
-  const candidates = [
-    fileURLToPath(new URL("../../../../", import.meta.url)),
-    fileURLToPath(new URL("../../../", import.meta.url)),
-  ];
-  const root = candidates.find((candidate) =>
-    existsSync(path.join(candidate, "package-lock.json")),
-  );
-  if (root === undefined) {
-    throw new Error("Could not resolve the GhostQA repository root.");
-  }
-  return root;
-};
+import { repositoryRootFromModule } from "../support/repository-root.js";
 
 const pageUrl = (baseUrl: string, pathname: string): string =>
   new URL(pathname, `${baseUrl.replace(/\/$/, "")}/`).href;
@@ -57,7 +42,9 @@ test(
       await page.getByRole("heading", { name: "Overview" }).waitFor();
       await page.screenshot({ path: path.join(proofRoot, "01-overview.png"), fullPage: true });
 
-      await page.getByRole("link", { name: "Projects" }).click();
+      await page
+        .getByRole("link", { name: "Projects", exact: true })
+        .click();
       await page.getByRole("heading", { name: "Projects" }).waitFor();
 
       const temporaryProjectName = `Dashboard E2E ${Date.now()}`;
@@ -88,12 +75,17 @@ test(
       );
       await page.reload();
       await page.getByRole("heading", { name: "Projects" }).waitFor();
+      await page
+        .locator("aside")
+        .getByText("GhostQA", { exact: true })
+        .waitFor();
 
       const projectCard = page.locator("article").filter({ hasText: seeded.project.name }).first();
       await projectCard.getByRole("link", { name: "Open project" }).waitFor();
       await page.screenshot({ path: path.join(proofRoot, "02-projects.png"), fullPage: true });
       await projectCard.getByRole("link", { name: "Open project" }).click();
 
+      await page.waitForURL(pageUrl(dashboardUrl, `/projects/${seeded.project.id}`));
       await page
         .getByRole("heading", { name: seeded.project.name, exact: true })
         .waitFor();
@@ -216,7 +208,17 @@ test(
       assert.equal(traceResponse.status, 200);
       assert.match(traceResponse.headers.get("content-type") ?? "", /zip/);
       assert.ok((await traceResponse.arrayBuffer()).byteLength > 0);
-      await page.screenshot({ path: path.join(proofRoot, "07-fail-result.png"), fullPage: true });
+
+      await page
+        .getByRole("button", { name: "Open screenshot at full size" })
+        .click();
+      const screenshotDialog = page.getByRole("dialog", {
+        name: "Expanded browser screenshot",
+      });
+      await screenshotDialog.waitFor();
+      await page.keyboard.press("Escape");
+      await screenshotDialog.waitFor({ state: "hidden" });
+      await page.screenshot({ path: path.join(proofRoot, "07-fail-result.png") });
 
       await page.reload();
       await page.getByRole("heading", { name: "Double Action" }).waitFor();

@@ -28,7 +28,8 @@ export const FlowDetailPage = () => {
   const queryClient = useQueryClient();
   const [importingScenarios, setImportingScenarios] = useState(false);
   const flow = useQuery({ queryKey: ["flow", flowId], queryFn: () => getFlow(flowId), enabled: flowId.length > 0 });
-  const project = useQuery({ queryKey: ["project", flow.data?.projectId], queryFn: () => getProject(flow.data!.projectId), enabled: flow.data !== undefined });
+  const projectId = flow.data?.projectId;
+  const project = useQuery({ queryKey: ["project", projectId], queryFn: () => getProject(projectId ?? ""), enabled: projectId !== undefined });
   const scenarios = useQuery({ queryKey: ["flow-scenarios", flowId], queryFn: () => listFlowScenarios(flowId), enabled: flowId.length > 0 });
   const toggleMutation = useMutation({
     mutationFn: ({ scenarioId, enabled }: { scenarioId: string; enabled: boolean }) => updateScenarioEnabled(scenarioId, enabled),
@@ -75,7 +76,7 @@ export const FlowDetailPage = () => {
 
       {runMutation.isPending ? (
         <section aria-live="polite" className="rounded-xl border border-sky-400/20 bg-sky-400/[0.05] p-5">
-          <div className="flex items-start gap-4"><span className="mt-0.5 block size-5 shrink-0 animate-spin rounded-full border-2 border-sky-800 border-t-sky-300" /><div><h2 className="font-semibold text-sky-200">Running GhostQA…</h2><p className="mt-1 text-sm leading-6 text-slate-400">The server is validating the baseline, executing enabled behavioral scenarios sequentially, and collecting evidence. It will return the persisted run when execution finishes.</p><p className="mt-2 text-xs text-slate-500">No progress percentage is shown because the Phase 4 API does not expose per-scenario live progress.</p></div></div>
+          <div className="flex items-start gap-4"><span className="mt-0.5 block size-5 shrink-0 animate-spin rounded-full border-2 border-sky-800 border-t-sky-300" /><div><h2 className="font-semibold text-sky-200">Running GhostQA…</h2><p className="mt-1 text-sm leading-6 text-slate-400">The server is validating the baseline, executing enabled behavioral scenarios sequentially, and collecting evidence. It will return the persisted run when execution finishes.</p><p className="mt-2 text-xs text-slate-500">No progress percentage is shown because the synchronous V1 API does not expose per-scenario live progress.</p></div></div>
         </section>
       ) : null}
       {runMutation.isError ? <ErrorState error={runMutation.error} title="Run failed to start or complete" /> : null}
@@ -138,4 +139,3 @@ export const FlowDetailPage = () => {
     </div>
   );
 };
-

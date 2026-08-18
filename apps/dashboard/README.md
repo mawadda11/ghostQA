@@ -22,6 +22,6 @@ Routes:
 - `/runs` and `/runs/:runId` — persisted execution history and summaries
 - `/results/:resultId` — structured evidence, screenshot, and trace access
 
-Normalized flow and scenario JSON imports are validated by the Phase 4 API.
+Normalized flow and scenario JSON imports are validated by the V1 API.
 The dashboard never constructs artifact paths; it retrieves files by artifact
 ID through the server.

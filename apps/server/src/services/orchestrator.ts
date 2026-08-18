@@ -84,6 +84,10 @@ export class RunOrchestrator {
       );
     }
 
+    // Validate persisted JSON before creating a RUNNING record. Corrupt stored
+    // configuration must fail closed without leaving an orphaned active run.
+    const flow = toNormalizedFlow(record);
+
     const run = await this.#prisma.testRun.create({
       data: {
         projectId: record.projectId,
@@ -93,7 +97,6 @@ export class RunOrchestrator {
         totalScenarios: selected.length,
       },
     });
-    const flow = toNormalizedFlow(record);
     const target = {
       baseUrl: targetUrl.href,
       allowedHosts: [...this.#allowedHosts],
@@ -178,10 +181,28 @@ export class RunOrchestrator {
       return getRunDetail(this.#prisma, run.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const completedResults = await this.#prisma.testResult.findMany({
+        where: { testRunId: run.id },
+        select: { kind: true, status: true },
+      });
+      const baselineStatus = completedResults.find(
+        (result) => result.kind === "BASELINE",
+      )?.status;
+      const summary = calculateRunSummary(
+        completedResults
+          .filter((result) => result.kind === "SCENARIO")
+          .map((result) => result.status),
+      );
       await this.#prisma.testRun.update({
         where: { id: run.id },
         data: {
           status: "ERROR",
+          ...(baselineStatus === undefined ? {} : { baselineStatus }),
+          totalScenarios: summary.total,
+          passedCount: summary.passed,
+          failedCount: summary.failed,
+          needsReviewCount: summary.needsReview,
+          errorCount: summary.errors,
           completedAt: new Date(),
           errorMessage: message.slice(0, 20_000),
         },

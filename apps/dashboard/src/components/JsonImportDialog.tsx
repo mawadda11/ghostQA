@@ -5,8 +5,8 @@ import { ApiClientError } from "../api/client.js";
 import { DialogFrame } from "./DialogFrame.js";
 
 const flowExample = `{
-  "id": "checkout-flow",
-  "name": "Known-good checkout",
+  "id": "submission-flow",
+  "name": "Known-good submission",
   "steps": [
     { "id": "open", "position": 0, "action": "NAVIGATE", "path": "/" },
     { "id": "submit", "position": 1, "action": "CLICK", "locator": { "kind": "ROLE", "role": "button", "name": "Submit" } }
@@ -120,4 +120,3 @@ export const JsonImportDialog = ({
     </DialogFrame>
   );
 };
-

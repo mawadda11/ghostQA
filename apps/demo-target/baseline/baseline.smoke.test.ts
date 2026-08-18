@@ -1,27 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { PlaywrightBaselineEngine } from "@ghostqa/test-engine";
 
 import { ghostShopBaselineFlow } from "./ghostshop-flow.js";
-
-const repositoryRootFromModule = (): string => {
-  const candidates = [
-    fileURLToPath(new URL("../../../../", import.meta.url)),
-    fileURLToPath(new URL("../../../", import.meta.url)),
-  ];
-  const root = candidates.find((candidate) =>
-    existsSync(path.join(candidate, "package-lock.json")),
-  );
-  if (root === undefined) {
-    throw new Error("Could not resolve the GhostQA repository root.");
-  }
-  return root;
-};
+import { repositoryRootFromModule } from "../support/repository-root.js";
 
 test(
   "the real GhostShop checkout baseline passes in Chromium",

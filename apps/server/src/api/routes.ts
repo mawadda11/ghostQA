@@ -9,7 +9,7 @@ import type {
 } from "@ghostqa/shared";
 import { Router } from "express";
 
-import { resolveStoredArtifactPath } from "../artifacts/path-safety.js";
+import { resolveExistingStoredArtifactPath } from "../artifacts/path-safety.js";
 import {
   createFlow,
   getFlow,
@@ -238,10 +238,23 @@ export const createApiRouter = (options: ApiRouterOptions): Router => {
       },
     });
     if (artifact === null) throw notFound("Artifact");
-    const absolutePath = resolveStoredArtifactPath(
-      options.artifactRoot,
-      artifact.relativePath,
-    );
+    let absolutePath: string;
+    try {
+      absolutePath = await resolveExistingStoredArtifactPath(
+        options.artifactRoot,
+        artifact.relativePath,
+      );
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error.code === "ENOENT" || error.code === "ENOTDIR")
+      ) {
+        throw notFound("Artifact file");
+      }
+      throw error;
+    }
     const file = await stat(absolutePath);
     if (!file.isFile()) throw notFound("Artifact file");
     response.type(artifact.mimeType);

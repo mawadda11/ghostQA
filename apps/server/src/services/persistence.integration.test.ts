@@ -16,7 +16,7 @@ import { createFlow, getFlow } from "./flows.js";
 import { RunOrchestrator } from "./orchestrator.js";
 import { createProject, deleteProject } from "./projects.js";
 import { getResult, persistExecutionReport } from "./results.js";
-import { listRuns } from "./runs.js";
+import { getRunDetail, listRuns } from "./runs.js";
 import { listFlowScenarios, upsertScenarioPlan } from "./scenarios.js";
 
 const allowedHosts = new Set(["localhost", "127.0.0.1"]);
@@ -137,7 +137,7 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe.sequential("Phase 4 persistence and orchestration", () => {
+describe.sequential("persistence and orchestration", () => {
   it("round-trips projects, normalized flows, scenarios, reports, evidence, and artifacts", async () => {
     const fixture = await createPersistedFixture();
     try {
@@ -275,6 +275,205 @@ describe.sequential("Phase 4 persistence and orchestration", () => {
       expect(failedRun.status).toBe("ERROR");
       expect(failedRun.completedAt).not.toBeNull();
       expect(failedRun.errorMessage).toContain("Synthetic engine failure");
+    } finally {
+      await deleteProject(prisma, fixture.project.id);
+    }
+  });
+
+  it("rejects malformed persisted flow data before creating a run", async () => {
+    const fixture = await createPersistedFixture();
+    await prisma.flowStep.updateMany({
+      where: { flowId: fixture.flow.id, stepKey: "open" },
+      data: { configJson: "not-json" },
+    });
+    try {
+      await expect(
+        new RunOrchestrator({
+          prisma,
+          allowedHosts,
+          artifactRoot: path.resolve("artifacts"),
+          baselineEngine: {
+            execute: async (request) => passingBaseline(request.flow),
+          },
+          scenarioEngine: {
+            execute: async (request) => passingScenario(request),
+          },
+        }).runFlow(fixture.flow.id),
+      ).rejects.toThrow(/malformed JSON/);
+      expect(
+        await prisma.testRun.count({
+          where: { projectId: fixture.project.id },
+        }),
+      ).toBe(0);
+    } finally {
+      await deleteProject(prisma, fixture.project.id);
+    }
+  });
+
+  it("rechecks target authorization before creating a run", async () => {
+    const fixture = await createPersistedFixture();
+    try {
+      await expect(
+        new RunOrchestrator({
+          prisma,
+          allowedHosts: new Set(["localhost"]),
+          artifactRoot: path.resolve("artifacts"),
+          baselineEngine: {
+            execute: async (request) => passingBaseline(request.flow),
+          },
+          scenarioEngine: {
+            execute: async (request) => passingScenario(request),
+          },
+        }).runFlow(fixture.flow.id),
+      ).rejects.toMatchObject({ code: "HOST_NOT_ALLOWED" });
+      expect(
+        await prisma.testRun.count({
+          where: { projectId: fixture.project.id },
+        }),
+      ).toBe(0);
+    } finally {
+      await deleteProject(prisma, fixture.project.id);
+    }
+  });
+
+  it("finalizes ERROR after a malformed persisted scenario configuration", async () => {
+    const fixture = await createPersistedFixture();
+    await prisma.scenario.update({
+      where: { id: fixture.scenario.id },
+      data: { configJson: "{}" },
+    });
+    try {
+      await expect(
+        new RunOrchestrator({
+          prisma,
+          allowedHosts,
+          artifactRoot: path.resolve("artifacts"),
+          baselineEngine: {
+            execute: async (request) => passingBaseline(request.flow),
+          },
+          scenarioEngine: {
+            execute: async (request) => passingScenario(request),
+          },
+        }).runFlow(fixture.flow.id),
+      ).rejects.toMatchObject({ code: "RUN_EXECUTION_ERROR" });
+
+      const failedRun = await prisma.testRun.findFirstOrThrow({
+        where: { projectId: fixture.project.id },
+      });
+      const detail = await getRunDetail(prisma, failedRun.id);
+      expect(detail.status).toBe("ERROR");
+      expect(detail.baselineStatus).toBe("PASS");
+      expect(detail.baselineResult?.status).toBe("PASS");
+      expect(detail.scenarioResults).toHaveLength(0);
+    } finally {
+      await deleteProject(prisma, fixture.project.id);
+    }
+  });
+
+  it("preserves completed results and summary counts when a later scenario throws", async () => {
+    const fixture = await createPersistedFixture();
+    await upsertScenarioPlan(
+      prisma,
+      fixture.flow.id,
+      [
+        {
+          id: "api-failure",
+          name: "API Failure",
+          family: "API_FAILURE",
+          config: {
+            family: "API_FAILURE",
+            checkpointStepId: "open",
+            statusCode: 500,
+            brokenState: {
+              locator: { kind: "TEST_ID", value: "submit" },
+              state: "VISIBLE",
+            },
+          },
+        },
+      ],
+      allowedHosts,
+    );
+    let scenarioNumber = 0;
+    const baselineEngine: TestEngine = {
+      execute: async (request) => passingBaseline(request.flow),
+    };
+    const scenarioEngine: ScenarioTestEngine = {
+      execute: async (request) => passingScenario(request),
+    };
+    try {
+      await expect(
+        new RunOrchestrator({
+          prisma,
+          allowedHosts,
+          artifactRoot: path.resolve("artifacts"),
+          baselineEngine,
+          scenarioEngine,
+          hooks: {
+            beforeScenario: async () => {
+              scenarioNumber += 1;
+              if (scenarioNumber === 2) {
+                throw new Error("Synthetic later-scenario failure");
+              }
+            },
+          },
+        }).runFlow(fixture.flow.id),
+      ).rejects.toMatchObject({ code: "RUN_EXECUTION_ERROR" });
+
+      const failedRun = await prisma.testRun.findFirstOrThrow({
+        where: { projectId: fixture.project.id },
+        orderBy: { startedAt: "desc" },
+      });
+      const detail = await getRunDetail(prisma, failedRun.id);
+      expect(detail.status).toBe("ERROR");
+      expect(detail.baselineStatus).toBe("PASS");
+      expect(detail.summary).toEqual({
+        total: 1,
+        passed: 1,
+        failed: 0,
+        needsReview: 0,
+        errors: 0,
+      });
+      expect(detail.scenarioResults).toHaveLength(1);
+      expect(detail.errorMessage).toContain("Synthetic later-scenario failure");
+    } finally {
+      await deleteProject(prisma, fixture.project.id);
+    }
+  });
+
+  it("completes a baseline-only run when no scenarios are enabled", async () => {
+    const fixture = await createPersistedFixture();
+    await prisma.scenario.update({
+      where: { id: fixture.scenario.id },
+      data: { enabled: false },
+    });
+    let scenarioExecutions = 0;
+    const baselineEngine: TestEngine = {
+      execute: async (request) => passingBaseline(request.flow),
+    };
+    const scenarioEngine: ScenarioTestEngine = {
+      execute: async (request) => {
+        scenarioExecutions += 1;
+        return passingScenario(request);
+      },
+    };
+    try {
+      const detail = await new RunOrchestrator({
+        prisma,
+        allowedHosts,
+        artifactRoot: path.resolve("artifacts"),
+        baselineEngine,
+        scenarioEngine,
+      }).runFlow(fixture.flow.id);
+      expect(detail.status).toBe("COMPLETED");
+      expect(detail.baselineStatus).toBe("PASS");
+      expect(detail.summary).toEqual({
+        total: 0,
+        passed: 0,
+        failed: 0,
+        needsReview: 0,
+        errors: 0,
+      });
+      expect(scenarioExecutions).toBe(0);
     } finally {
       await deleteProject(prisma, fixture.project.id);
     }

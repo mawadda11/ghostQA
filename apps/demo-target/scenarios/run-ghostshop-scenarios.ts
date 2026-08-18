@@ -1,6 +1,4 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import type {
   EngineExecutionReport,
@@ -12,6 +10,7 @@ import {
 } from "@ghostqa/test-engine";
 
 import { ghostShopBaselineFlow } from "../baseline/ghostshop-flow.js";
+import { repositoryRootFromModule } from "../support/repository-root.js";
 import { ghostShopScenarios } from "./ghostshop-scenarios.js";
 
 export interface GhostShopScenarioRun {
@@ -20,20 +19,6 @@ export interface GhostShopScenarioRun {
   baseline: EngineExecutionReport;
   scenarios: readonly ScenarioExecutionReport[];
 }
-
-const repositoryRootFromModule = (): string => {
-  const candidates = [
-    fileURLToPath(new URL("../../../../", import.meta.url)),
-    fileURLToPath(new URL("../../../", import.meta.url)),
-  ];
-  const root = candidates.find((candidate) =>
-    existsSync(path.join(candidate, "package-lock.json")),
-  );
-  if (root === undefined) {
-    throw new Error("Could not resolve the GhostQA repository root.");
-  }
-  return root;
-};
 
 const resetGhostShop = async (targetUrl: string): Promise<void> => {
   const response = await fetch(new URL("/api/test/reset", targetUrl), {

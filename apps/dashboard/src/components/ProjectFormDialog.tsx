@@ -101,7 +101,7 @@ export const ProjectFormDialog = ({
               autoFocus
               className={inputClasses}
               onChange={(event) => update("name", event.target.value)}
-              placeholder="Checkout application"
+              placeholder="Customer portal"
               value={values.name}
             />
             {errors.name === undefined ? null : (
@@ -151,4 +151,3 @@ export const ProjectFormDialog = ({
     </DialogFrame>
   );
 };
-

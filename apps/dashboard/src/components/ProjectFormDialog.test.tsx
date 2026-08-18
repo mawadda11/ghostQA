@@ -30,7 +30,7 @@ describe("project form", () => {
     const user = userEvent.setup();
     render(<ProjectFormDialog onClose={() => undefined} onSubmit={submit} />);
 
-    await user.type(screen.getByLabelText("Project name"), "Checkout app");
+    await user.type(screen.getByLabelText("Project name"), "Customer portal");
     await user.type(
       screen.getByLabelText("Target base URL"),
       "http://127.0.0.1:4173",
@@ -38,7 +38,7 @@ describe("project form", () => {
     await user.click(screen.getByRole("button", { name: "Create project" }));
 
     expect(submit).toHaveBeenCalledWith({
-      name: "Checkout app",
+      name: "Customer portal",
       baseUrl: "http://127.0.0.1:4173",
     });
   });

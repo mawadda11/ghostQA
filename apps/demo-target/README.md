@@ -39,10 +39,10 @@ $env:GHOSTSHOP_PORT="4183"; npm run demo:dev
 $env:GHOSTSHOP_URL="http://127.0.0.1:4183"; npm run demo:baseline
 ```
 
-The opt-in real Chromium smoke test also expects GhostShop to be running:
+The real Chromium baseline proof also expects GhostShop to be running:
 
 ```bash
-npm run demo:test:smoke
+npm run demo:test:baseline
 ```
 
 ## Run the behavioral scenarios
@@ -70,7 +70,7 @@ npm run demo:seed
 npm run demo:persisted-run
 ```
 
-The opt-in Phase 4 integration proof runs the same real Chromium path and also
+The persisted-run integration proof runs the same real Chromium path and also
 reads every result and artifact back through the API:
 
 ```bash
