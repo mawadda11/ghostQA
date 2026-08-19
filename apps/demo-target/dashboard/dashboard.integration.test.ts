@@ -16,6 +16,11 @@ test(
   "the real GhostShop workflow is operable and persistent through the dashboard",
   { timeout: 240_000 },
   async () => {
+    assert.equal(
+      process.env["GHOSTQA_TEST_DATABASE"],
+      "isolated",
+      "Run this integration test through the isolated GhostQA E2E harness.",
+    );
     const dashboardUrl =
       process.env["GHOSTQA_DASHBOARD_URL"] ?? "http://127.0.0.1:5173";
     const serverUrl =
@@ -182,7 +187,7 @@ test(
         .getByRole("navigation", { name: "Primary", exact: true })
         .getByRole("link", { name: "Runs" })
         .click();
-      await page.getByRole("heading", { name: "Runs" }).waitFor();
+      await page.getByRole("heading", { name: "Runs", exact: true }).waitFor();
       await page.getByRole("link", { name: run.flowName }).first().waitFor();
       await page.screenshot({ path: path.join(proofRoot, "06-runs.png"), fullPage: true });
 

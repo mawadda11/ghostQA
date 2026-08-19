@@ -4,8 +4,10 @@ import type {
   ArtifactDescriptor,
   BaselineExecutionRequest,
   EngineExecutionReport,
+  EvidenceEntry,
   ExecutedStep,
   ExecutionErrorObservation,
+  FlowAssertionResult,
   SuccessAssertionResult,
 } from "@ghostqa/shared";
 import { chromium } from "playwright";
@@ -17,6 +19,11 @@ import { classifyBaselineResult } from "./classification.js";
 import { executeFlowStep } from "./steps.js";
 import { evaluateSuccessAssertion } from "./success-assertion.js";
 import { validateBaselineRequest } from "./validation.js";
+import {
+  assertionsAfterStep,
+  orderedFlowAssertions,
+  primaryFlowAssertion,
+} from "./flow-assertions.js";
 
 const nowIso = (): string => new Date().toISOString();
 
@@ -43,13 +50,13 @@ const summaryFor = (
   executionError: ExecutionErrorObservation | undefined,
 ): string => {
   if (status === "PASS") {
-    return "Baseline completed and the configured success assertion passed.";
+    return "Baseline completed and all configured flow assertions passed.";
   }
 
   if (status === "FAIL") {
     return executionError?.source === "FLOW_STEP"
       ? `Baseline flow step failed: ${executionError.message}`
-      : `Baseline success assertion failed: ${assertion.detail}`;
+      : `Baseline assertion failed: ${assertion.detail}`;
   }
 
   return `GhostQA could not execute the baseline: ${executionError?.message ?? "unknown engine error"}`;
@@ -64,10 +71,27 @@ export class PlaywrightBaselineEngine {
     const collector = new BrowserEvidenceCollector();
     const artifacts: ArtifactDescriptor[] = [];
     const executedSteps: ExecutedStep[] = [];
+    const evidenceEntries: EvidenceEntry[] = [];
+    const assertionDefinitions = orderedFlowAssertions(request.flow);
+    let assertions: FlowAssertionResult[] = assertionDefinitions.map(
+      (definition) => ({
+        id: definition.id,
+        ...(definition.afterStepId === undefined
+          ? {}
+          : { afterStepId: definition.afterStepId }),
+        assertion: definition.assertion,
+        status: "NOT_EVALUATED",
+        detail: "The assertion was not evaluated.",
+      }),
+    );
+    const initialAssertion =
+      request.flow.successAssertion ??
+      request.flow.assertions?.[request.flow.assertions.length - 1]?.assertion ??
+      ({ kind: "TEXT_VISIBLE", text: "Invalid flow assertion" } as const);
     let assertion: SuccessAssertionResult = {
-      assertion: request.flow.successAssertion,
+      assertion: initialAssertion,
       status: "NOT_EVALUATED",
-      detail: "The success assertion was not evaluated.",
+      detail: "The flow assertion was not evaluated.",
     };
     let executionError: ExecutionErrorObservation | undefined;
     let engineError = false;
@@ -93,6 +117,7 @@ export class PlaywrightBaselineEngine {
       page = await context.newPage();
       collector.attach(page);
 
+      let attachedAssertionFailed = false;
       for (const step of request.flow.steps) {
         const stepStartedAt = nowIso();
         try {
@@ -105,6 +130,39 @@ export class PlaywrightBaselineEngine {
             startedAt: stepStartedAt,
             completedAt: nowIso(),
           });
+          for (const attached of assertionsAfterStep(
+            request.flow.assertions,
+            step.id,
+          )) {
+            const evaluated = await evaluateSuccessAssertion(
+              page,
+              attached.assertion,
+            );
+            const result: FlowAssertionResult = {
+              id: attached.id,
+              afterStepId: attached.afterStepId,
+              ...evaluated,
+            };
+            assertions = assertions.map((candidate) =>
+              candidate.id === attached.id ? result : candidate,
+            );
+            assertion = evaluated;
+            evidenceEntries.push({
+              type: "ASSERTION",
+              message: `Flow assertion "${attached.id}" ${evaluated.status.toLowerCase()}.`,
+              timestamp: nowIso(),
+              metadata: {
+                assertionId: attached.id,
+                afterStepId: attached.afterStepId,
+                status: evaluated.status,
+              },
+            });
+            if (evaluated.status === "FAILED") {
+              attachedAssertionFailed = true;
+              break;
+            }
+          }
+          if (attachedAssertionFailed) break;
         } catch (error) {
           executionError = toExecutionError("FLOW_STEP", error, step.id);
           executedSteps.push({
@@ -120,11 +178,40 @@ export class PlaywrightBaselineEngine {
         }
       }
 
-      if (executionError === undefined) {
+      if (
+        executionError === undefined &&
+        !attachedAssertionFailed &&
+        request.flow.successAssertion !== undefined
+      ) {
         assertion = await evaluateSuccessAssertion(
           page,
           request.flow.successAssertion,
         );
+        const finalResult: FlowAssertionResult = {
+          id: "final-success-assertion",
+          ...assertion,
+        };
+        assertions = assertions.map((candidate) =>
+          candidate.id === finalResult.id ? finalResult : candidate,
+        );
+        evidenceEntries.push({
+          type: "ASSERTION",
+          message: `Final flow assertion ${assertion.status.toLowerCase()}.`,
+          timestamp: nowIso(),
+          metadata: { status: assertion.status },
+        });
+      } else if (
+        executionError === undefined &&
+        !attachedAssertionFailed &&
+        request.flow.successAssertion === undefined
+      ) {
+        assertion = {
+          assertion: primaryFlowAssertion(request.flow),
+          status: assertions.every(({ status }) => status === "PASSED")
+            ? "PASSED"
+            : "NOT_EVALUATED",
+          detail: "All configured step-bound assertions were satisfied.",
+        };
       }
     } catch (error) {
       engineError = true;
@@ -196,10 +283,11 @@ export class PlaywrightBaselineEngine {
         ...(page === undefined ? {} : { finalUrl: page.url() }),
         console: collector.console,
         network: collector.network,
-        entries: [],
+        entries: evidenceEntries,
       },
       artifacts,
       executedSteps,
+      assertions,
       assertion,
       ...(executionError === undefined ? {} : { executionError }),
       startedAt,

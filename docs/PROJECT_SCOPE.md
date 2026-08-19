@@ -2,7 +2,11 @@
 
 ## Product statement
 
-GhostQA is an adaptive web behavior testing platform. A developer supplies a known-good baseline flow for a web application. GhostQA replays the flow under selected failure and user-behavior conditions, observes the real browser/network behavior, and produces evidence-backed results.
+GhostQA is an adaptive web behavior testing platform. A developer captures a
+known-good journey from rendered browser behavior, or imports its normalized
+JSON as an advanced option. GhostQA replays the flow under selected failure and
+user-behavior conditions, observes the real browser/network behavior, and
+produces evidence-backed results.
 
 ## Primary user
 
@@ -11,16 +15,20 @@ Software developers and QA engineers testing web applications they own or contro
 ## V1 goals
 
 1. Register a web project and allowlisted target URL.
-2. Import/register a baseline Playwright flow.
-3. Configure a critical action and a simple success assertion.
+2. Capture, review, and register a normalized baseline flow; retain JSON import.
+3. Configure optional critical-action metadata and one or more user-confirmed
+   assertions/checkpoints, including the existing final assertion.
 4. Validate the baseline flow first.
-5. Generate a test plan from exactly five scenario families.
+5. Generate a focused deterministic test plan from exactly five scenario
+   families, selecting only applicable instances and allowing visual overrides.
 6. Run every scenario in an isolated Chromium context.
 7. Collect network observations, console errors, final URL, screenshot, and trace where useful.
 8. Classify each run as PASS, FAIL, NEEDS_REVIEW, or ERROR.
 9. Store runs/results in SQLite.
-10. Provide a clean developer-oriented dashboard.
+10. Provide a clean developer-oriented dashboard where one Project (target
+    application) can contain multiple independent captured Flows (journeys).
 11. Include GhostShop Demo with intentionally seeded bugs.
+12. Keep capture semantic and local: no video, source analysis, or public browsing.
 
 ## V1 scenario families
 
@@ -80,7 +88,16 @@ Do not implement in V1:
 
 ## V1 completion criteria
 
-V1 is complete when GhostQA can validate the GhostShop baseline, execute all six
-configured instances across the five scenario families, detect the four seeded
-defects with real evidence, persist results and artifact metadata, and reopen
-the complete run from the dashboard after refresh.
+V1 is complete when GhostQA can capture and replay a generic known-good baseline,
+validate the GhostShop baseline, execute all six configured instances across the
+five scenario families, detect the four seeded defects with real evidence,
+persist results and artifact metadata, and reopen the complete run from the
+dashboard after refresh.
+
+The primary workflow is Project → Capture → Review → Save → Replay Baseline →
+Focused Plan → Run → Evidence. JSON imports remain advanced escape hatches.
+Scenario availability comes only from captured structure and explicitly
+confirmed configuration; GhostQA does not infer business intent or claim every
+scenario applies. Navigation/read-only flows are valid without a critical
+action. One Project may contain multiple Flows, and their plans and runs remain
+independent.

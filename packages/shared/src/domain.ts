@@ -41,12 +41,14 @@ export type JsonValue =
 export type AriaRole =
   | "button"
   | "checkbox"
+  | "combobox"
   | "dialog"
   | "heading"
   | "link"
   | "listitem"
   | "navigation"
   | "radio"
+  | "searchbox"
   | "status"
   | "textbox";
 
@@ -75,7 +77,12 @@ interface BaseFlowStep {
 export type FlowStep =
   | (BaseFlowStep & { action: "NAVIGATE"; path: string })
   | (BaseFlowStep & { action: "CLICK"; locator: LocatorSpec })
-  | (BaseFlowStep & { action: "FILL"; locator: LocatorSpec; value: string })
+  | (BaseFlowStep & {
+      action: "FILL";
+      locator: LocatorSpec;
+      value: string;
+      sensitive?: boolean;
+    })
   | (BaseFlowStep & {
       action: "SELECT_OPTION";
       locator: LocatorSpec;
@@ -115,12 +122,23 @@ export type SuccessAssertion =
       timeoutMs?: number;
     };
 
+/** A business expectation evaluated immediately after a specific flow step. */
+export interface FlowAssertion {
+  id: string;
+  afterStepId: string;
+  assertion: SuccessAssertion;
+}
+
 export interface NormalizedFlow {
   id: string;
   name: string;
   steps: readonly FlowStep[];
-  criticalAction: CriticalAction;
-  successAssertion: SuccessAssertion;
+  /** Optional because navigation and other read-only flows have no mutation. */
+  criticalAction?: CriticalAction;
+  /** Backward-compatible assertion evaluated after the complete flow. */
+  successAssertion?: SuccessAssertion;
+  /** Assertions evaluated at their attached points while replaying the flow. */
+  assertions?: readonly FlowAssertion[];
 }
 
 export interface Flow extends NormalizedFlow {

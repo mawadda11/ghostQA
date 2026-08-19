@@ -12,14 +12,22 @@ import type { ScenarioTestEngine, TestEngine } from "@ghostqa/test-engine";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { prisma } from "../db/prisma.js";
-import { createFlow, getFlow } from "./flows.js";
+import { createFlow, getFlow, listProjectFlows } from "./flows.js";
 import { RunOrchestrator } from "./orchestrator.js";
-import { createProject, deleteProject } from "./projects.js";
+import { createProject, deleteProject, getProject } from "./projects.js";
 import { getResult, persistExecutionReport } from "./results.js";
-import { getRunDetail, listRuns } from "./runs.js";
-import { listFlowScenarios, upsertScenarioPlan } from "./scenarios.js";
+import { getRunDetail, listProjectRuns, listRuns } from "./runs.js";
+import {
+  listFlowScenarios,
+  replaceScenarioPlan,
+  upsertScenarioPlan,
+} from "./scenarios.js";
 
 const allowedHosts = new Set(["localhost", "127.0.0.1"]);
+const isolatedArtifactRoot = process.env["ARTIFACTS_ROOT"];
+if (isolatedArtifactRoot === undefined) {
+  throw new Error("Persistence tests require the isolated test artifact root.");
+}
 
 const createFixtureFlow = (): NormalizedFlow => ({
   id: "input-flow",
@@ -42,6 +50,8 @@ const createFixtureFlow = (): NormalizedFlow => ({
 });
 
 const reportFields = (flow: NormalizedFlow) => {
+  const finalAssertion = flow.successAssertion;
+  if (finalAssertion === undefined) throw new Error("Fixture requires final assertion.");
   const startedAt = new Date().toISOString();
   return {
     summary: "Fixture execution report.",
@@ -62,7 +72,7 @@ const reportFields = (flow: NormalizedFlow) => {
     artifacts: [],
     executedSteps: [],
     assertion: {
-      assertion: flow.successAssertion,
+      assertion: finalAssertion,
       status: "PASSED" as const,
       detail: "Passed.",
     },
@@ -82,7 +92,7 @@ const failingBaseline = (flow: NormalizedFlow): EngineExecutionReport => ({
   status: "FAIL",
   failureOrigin: "TARGET_APP_FAILURE",
   assertion: {
-    assertion: flow.successAssertion,
+    assertion: flow.successAssertion ?? { kind: "TEXT_VISIBLE", text: "Invalid fixture" },
     status: "FAILED",
     detail: "Expected success state was absent.",
   },
@@ -138,6 +148,70 @@ afterAll(async () => {
 });
 
 describe.sequential("persistence and orchestration", () => {
+  it("keeps multiple flows, plans, and runs isolated inside one project", async () => {
+    const project = await createProject(
+      prisma,
+      {
+        name: `Multi-flow ${randomUUID()}`,
+        description: "Integration fixture",
+        baseUrl: "http://127.0.0.1:4173",
+      },
+      allowedHosts,
+    );
+    try {
+      const first = await createFlow(
+        prisma,
+        project.id,
+        { ...createFixtureFlow(), name: "First journey" },
+        allowedHosts,
+      );
+      await replaceScenarioPlan(
+        prisma,
+        first.id,
+        [{ id: "double-action", name: "Double Action", family: "DOUBLE_ACTION", config: { family: "DOUBLE_ACTION" } }],
+        allowedHosts,
+      );
+      const firstBefore = await getFlow(prisma, first.id);
+      const firstPlanBefore = await listFlowScenarios(prisma, first.id);
+
+      const second = await createFlow(
+        prisma,
+        project.id,
+        { ...createFixtureFlow(), id: "second-input", name: "Second journey" },
+        allowedHosts,
+      );
+      await replaceScenarioPlan(
+        prisma,
+        second.id,
+        [{ id: "slow-response", name: "Slow Response", family: "SLOW_RESPONSE", config: { family: "SLOW_RESPONSE", checkpointStepId: "open", delayMs: 100 } }],
+        allowedHosts,
+      );
+      const orchestrator = new RunOrchestrator({
+        prisma,
+        allowedHosts,
+        artifactRoot: isolatedArtifactRoot,
+        baselineEngine: { execute: async (request) => passingBaseline(request.flow) },
+        scenarioEngine: { execute: async (request) => passingScenario(request) },
+      });
+      const firstRun = await orchestrator.runFlow(first.id);
+      const secondRun = await orchestrator.runFlow(second.id);
+
+      expect(await getFlow(prisma, first.id)).toEqual(firstBefore);
+      expect(await listFlowScenarios(prisma, first.id)).toEqual(firstPlanBefore);
+      expect((await listProjectFlows(prisma, project.id)).map(({ id }) => id)).toEqual(
+        expect.arrayContaining([first.id, second.id]),
+      );
+      expect((await getProject(prisma, project.id)).flowCount).toBe(2);
+      expect((await listProjectRuns(prisma, project.id)).map(({ flowId }) => flowId)).toEqual(
+        expect.arrayContaining([firstRun.flowId, secondRun.flowId]),
+      );
+      expect(firstRun.flowId).toBe(first.id);
+      expect(secondRun.flowId).toBe(second.id);
+    } finally {
+      await deleteProject(prisma, project.id);
+    }
+  });
+
   it("round-trips projects, normalized flows, scenarios, reports, evidence, and artifacts", async () => {
     const fixture = await createPersistedFixture();
     try {
@@ -169,11 +243,9 @@ describe.sequential("persistence and orchestration", () => {
           startedAt: new Date(),
         },
       });
-      const artifactRoot = path.resolve(
-        "..",
-        "..",
-        "artifacts",
-        "tests",
+      const artifactRoot = path.join(
+        isolatedArtifactRoot,
+        "persistence",
         randomUUID(),
       );
       const tracePath = path.join(artifactRoot, "trace.zip");
@@ -218,6 +290,93 @@ describe.sequential("persistence and orchestration", () => {
     }
   });
 
+  it("round-trips a read-only flow with step assertions and replaces its visual test plan", async () => {
+    const project = await createProject(
+      prisma,
+      {
+        name: `Read only ${randomUUID()}`,
+        baseUrl: "http://127.0.0.1:4173",
+      },
+      allowedHosts,
+    );
+    try {
+      const readOnlyFlow: NormalizedFlow = {
+        id: "read-only-input",
+        name: "Read-only journey",
+        steps: [
+          { id: "start", position: 0, action: "NAVIGATE", path: "/" },
+          { id: "result", position: 1, action: "WAIT_FOR_URL", url: "**/result" },
+        ],
+        assertions: [
+          {
+            id: "ready",
+            afterStepId: "start",
+            assertion: { kind: "TEXT_VISIBLE", text: "Ready" },
+          },
+          {
+            id: "result-url",
+            afterStepId: "result",
+            assertion: { kind: "URL_MATCHES", value: "**/result" },
+          },
+        ],
+      };
+      const created = await createFlow(
+        prisma,
+        project.id,
+        readOnlyFlow,
+        allowedHosts,
+      );
+      const readBack = await getFlow(prisma, created.id);
+      expect(readBack.criticalAction).toBeUndefined();
+      expect(readBack.successAssertion).toBeUndefined();
+      expect(readBack.assertions).toEqual(readOnlyFlow.assertions);
+
+      await replaceScenarioPlan(
+        prisma,
+        created.id,
+        [{
+          id: "refresh",
+          name: "Refresh",
+          family: "REFRESH_BACK_NAVIGATION",
+          config: {
+            family: "REFRESH_BACK_NAVIGATION",
+            mode: "REFRESH",
+            checkpointStepId: "start",
+            expectedState: {
+              locator: { kind: "TEXT", text: "Ready" },
+              state: "VISIBLE",
+            },
+          },
+        }],
+        allowedHosts,
+      );
+      await replaceScenarioPlan(
+        prisma,
+        created.id,
+        [{
+          id: "back",
+          name: "Back Navigation",
+          family: "REFRESH_BACK_NAVIGATION",
+          config: {
+            family: "REFRESH_BACK_NAVIGATION",
+            mode: "BACK",
+            checkpointStepId: "result",
+            expectedState: {
+              locator: { kind: "TEXT", text: "Ready" },
+              state: "VISIBLE",
+            },
+          },
+        }],
+        allowedHosts,
+      );
+      expect(await listFlowScenarios(prisma, created.id)).toMatchObject([
+        { scenarioKey: "back", family: "REFRESH_BACK_NAVIGATION" },
+      ]);
+    } finally {
+      await deleteProject(prisma, project.id);
+    }
+  });
+
   it("persists a failed baseline and skips every scenario", async () => {
     const fixture = await createPersistedFixture();
     let scenarioExecutions = 0;
@@ -234,7 +393,7 @@ describe.sequential("persistence and orchestration", () => {
       const detail = await new RunOrchestrator({
         prisma,
         allowedHosts,
-        artifactRoot: path.resolve("artifacts"),
+        artifactRoot: isolatedArtifactRoot,
         baselineEngine,
         scenarioEngine,
       }).runFlow(fixture.flow.id);
@@ -262,7 +421,7 @@ describe.sequential("persistence and orchestration", () => {
         new RunOrchestrator({
           prisma,
           allowedHosts,
-          artifactRoot: path.resolve("..", "..", "artifacts"),
+          artifactRoot: isolatedArtifactRoot,
           baselineEngine,
           scenarioEngine,
         }).runFlow(fixture.flow.id),
@@ -291,7 +450,7 @@ describe.sequential("persistence and orchestration", () => {
         new RunOrchestrator({
           prisma,
           allowedHosts,
-          artifactRoot: path.resolve("artifacts"),
+          artifactRoot: isolatedArtifactRoot,
           baselineEngine: {
             execute: async (request) => passingBaseline(request.flow),
           },
@@ -317,7 +476,7 @@ describe.sequential("persistence and orchestration", () => {
         new RunOrchestrator({
           prisma,
           allowedHosts: new Set(["localhost"]),
-          artifactRoot: path.resolve("artifacts"),
+          artifactRoot: isolatedArtifactRoot,
           baselineEngine: {
             execute: async (request) => passingBaseline(request.flow),
           },
@@ -347,7 +506,7 @@ describe.sequential("persistence and orchestration", () => {
         new RunOrchestrator({
           prisma,
           allowedHosts,
-          artifactRoot: path.resolve("artifacts"),
+          artifactRoot: isolatedArtifactRoot,
           baselineEngine: {
             execute: async (request) => passingBaseline(request.flow),
           },
@@ -405,7 +564,7 @@ describe.sequential("persistence and orchestration", () => {
         new RunOrchestrator({
           prisma,
           allowedHosts,
-          artifactRoot: path.resolve("artifacts"),
+          artifactRoot: isolatedArtifactRoot,
           baselineEngine,
           scenarioEngine,
           hooks: {
@@ -460,7 +619,7 @@ describe.sequential("persistence and orchestration", () => {
       const detail = await new RunOrchestrator({
         prisma,
         allowedHosts,
-        artifactRoot: path.resolve("artifacts"),
+        artifactRoot: isolatedArtifactRoot,
         baselineEngine,
         scenarioEngine,
       }).runFlow(fixture.flow.id);
@@ -498,7 +657,7 @@ describe.sequential("persistence and orchestration", () => {
       const detail = await new RunOrchestrator({
         prisma,
         allowedHosts,
-        artifactRoot: path.resolve("artifacts"),
+        artifactRoot: isolatedArtifactRoot,
         baselineEngine,
         scenarioEngine,
       }).runFlow(fixture.flow.id);

@@ -7,6 +7,11 @@ test(
   "a real GhostShop Chromium run survives the SQLite and API round-trip",
   { timeout: 180_000 },
   async () => {
+    assert.equal(
+      process.env["GHOSTQA_TEST_DATABASE"],
+      "isolated",
+      "Run this integration test through the isolated GhostQA E2E harness.",
+    );
     const serverUrl =
       process.env["GHOSTQA_SERVER_URL"] ?? "http://127.0.0.1:4000";
     const run = await runPersistedGhostShop();
@@ -19,15 +24,15 @@ test(
     );
     assert.equal(statuses.get("Double Action"), "FAIL");
     assert.equal(statuses.get("API Failure"), "FAIL");
-    assert.equal(statuses.get("Slow Response"), "NEEDS_REVIEW");
+    assert.equal(statuses.get("Slow Response"), "PASS");
     assert.equal(statuses.get("Refresh"), "FAIL");
     assert.equal(statuses.get("Back"), "PASS");
     assert.equal(statuses.get("Session Expiry"), "FAIL");
     assert.deepEqual(run.summary, {
       total: 6,
-      passed: 1,
+      passed: 2,
       failed: 4,
-      needsReview: 1,
+      needsReview: 0,
       errors: 0,
     });
 

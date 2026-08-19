@@ -97,12 +97,14 @@ describe("validateBaselineRequest", () => {
 
   it("requires the critical action to reference a click step", () => {
     const request = createValidBaselineRequest();
+    const criticalAction = request.flow.criticalAction;
+    if (criticalAction === undefined) throw new Error("Fixture requires critical action.");
     const invalid = {
       ...request,
       flow: {
         ...request.flow,
         criticalAction: {
-          ...request.flow.criticalAction,
+          ...criticalAction,
           stepId: "open",
         },
       },
@@ -111,5 +113,26 @@ describe("validateBaselineRequest", () => {
     expect(() => validateBaselineRequest(invalid)).toThrowError(
       /critical action/,
     );
+  });
+
+  it("accepts a checkpoint-only flow without a critical action", () => {
+    const request = createValidBaselineRequest();
+    const { criticalAction: _criticalAction, successAssertion: _final, ...flow } =
+      request.flow;
+    expect(() =>
+      validateBaselineRequest({
+        ...request,
+        flow: {
+          ...flow,
+          assertions: [
+            {
+              id: "ready",
+              afterStepId: "open",
+              assertion: { kind: "TEXT_VISIBLE", text: "Ready" },
+            },
+          ],
+        },
+      }),
+    ).not.toThrow();
   });
 });

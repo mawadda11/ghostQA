@@ -103,6 +103,18 @@ describe("validateScenarioRequest", () => {
     );
   });
 
+  it("accepts API Failure automatic observation without a configured element", () => {
+    expect(() =>
+      validateScenarioRequest(
+        createRequest({
+          family: "API_FAILURE",
+          checkpointStepId: "checkpoint",
+          statusCode: 500,
+        }),
+      ),
+    ).not.toThrow();
+  });
+
   it("rejects a missing checkpoint", () => {
     const invalid = createRequest({
       family: "SLOW_RESPONSE",
@@ -132,5 +144,27 @@ describe("validateScenarioRequest", () => {
     });
 
     expect(() => validateScenarioRequest(invalid)).toThrowError(/100-10000/);
+  });
+
+  it("allows navigation scenarios without a critical action", () => {
+    const request = createRequest({
+      family: "REFRESH_BACK_NAVIGATION",
+      checkpointStepId: "checkpoint",
+      mode: "REFRESH",
+      expectedState: {
+        locator: { kind: "TEXT", text: "Ready" },
+        state: "VISIBLE",
+      },
+    });
+    const { criticalAction: _criticalAction, ...flow } = request.flow;
+    expect(() => validateScenarioRequest({ ...request, flow })).not.toThrow();
+  });
+
+  it("requires a critical action for mutation-dependent scenarios", () => {
+    const request = createRequest();
+    const { criticalAction: _criticalAction, ...flow } = request.flow;
+    expect(() => validateScenarioRequest({ ...request, flow })).toThrowError(
+      /requires a configured critical action/,
+    );
   });
 });

@@ -11,12 +11,14 @@ export const locatorSchema = z.discriminatedUnion("kind", [
       role: z.enum([
         "button",
         "checkbox",
+        "combobox",
         "dialog",
         "heading",
         "link",
         "listitem",
         "navigation",
         "radio",
+        "searchbox",
         "status",
         "textbox",
       ]),
@@ -73,6 +75,7 @@ export const flowStepSchema = z.discriminatedUnion("action", [
       action: z.literal("FILL"),
       locator: locatorSchema,
       value: z.string().max(10_000),
+      sensitive: z.boolean().optional(),
     })
     .strict(),
   z
@@ -148,13 +151,24 @@ export const successAssertionSchema = z.discriminatedUnion("kind", [
     .strict(),
 ]);
 
+export const flowAssertionSchema = z
+  .object({
+    id: identifier,
+    afterStepId: identifier,
+    assertion: successAssertionSchema,
+  })
+  .strict();
+
+export const flowAssertionsSchema = z.array(flowAssertionSchema).max(100);
+
 export const normalizedFlowSchema = z
   .object({
     id: identifier,
     name: nonEmptyText,
     steps: z.array(flowStepSchema).min(1).max(200),
-    criticalAction: criticalActionSchema,
-    successAssertion: successAssertionSchema,
+    criticalAction: criticalActionSchema.optional(),
+    successAssertion: successAssertionSchema.optional(),
+    assertions: flowAssertionsSchema.optional(),
   })
   .strict()
   .superRefine((flow, context) => {
@@ -177,16 +191,48 @@ export const normalizedFlowSchema = z
       }
     });
 
-    const criticalStep = flow.steps.find(
-      (step) => step.id === flow.criticalAction.stepId,
-    );
-    if (criticalStep?.action !== "CLICK") {
+    if (flow.criticalAction !== undefined) {
+      const criticalStep = flow.steps.find(
+        (step) => step.id === flow.criticalAction?.stepId,
+      );
+      if (criticalStep?.action !== "CLICK") {
+        context.addIssue({
+          code: "custom",
+          path: ["criticalAction", "stepId"],
+          message: "Critical action must reference an existing CLICK step.",
+        });
+      }
+    }
+
+    if (
+      flow.successAssertion === undefined &&
+      (flow.assertions?.length ?? 0) === 0
+    ) {
       context.addIssue({
         code: "custom",
-        path: ["criticalAction", "stepId"],
-        message: "Critical action must reference an existing CLICK step.",
+        path: ["assertions"],
+        message: "A flow requires a final assertion or at least one step-bound assertion.",
       });
     }
+
+    const assertionIds = new Set<string>();
+    flow.assertions?.forEach((assertion, index) => {
+      if (assertionIds.has(assertion.id)) {
+        context.addIssue({
+          code: "custom",
+          path: ["assertions", index, "id"],
+          message: `Assertion ID "${assertion.id}" must be unique.`,
+        });
+      }
+      assertionIds.add(assertion.id);
+      if (!stepIds.has(assertion.afterStepId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["assertions", index, "afterStepId"],
+          message: "Assertion must reference an existing flow step.",
+        });
+      }
+    });
   });
 
 export const elementObservationSchema = z
@@ -235,7 +281,7 @@ export const scenarioConfigSchema = z.discriminatedUnion("family", [
       checkpointStepId: identifier,
       request: requestMatcherSchema.optional(),
       statusCode: z.literal(500),
-      brokenState: elementObservationSchema,
+      brokenState: elementObservationSchema.optional(),
       recoveryState: elementObservationSchema.optional(),
       assertionTimeoutMs: z.number().int().min(1).max(30_000).optional(),
     })
@@ -421,9 +467,15 @@ export const assertionResultSchema = z
   })
   .strict();
 
+export const flowAssertionResultSchema = assertionResultSchema.extend({
+  id: identifier,
+  afterStepId: identifier.optional(),
+});
+
 export const resultObservationsSchema = z
   .object({
     executedSteps: z.array(executedStepSchema),
     assertion: assertionResultSchema,
+    assertions: z.array(flowAssertionResultSchema).optional(),
   })
   .strict();

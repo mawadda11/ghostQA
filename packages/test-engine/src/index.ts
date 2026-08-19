@@ -14,6 +14,25 @@ export {
   validateBaselineRequest,
 } from "./baseline/validation.js";
 export { PlaywrightScenarioEngine } from "./scenario/runner.js";
+export { PlaywrightCaptureEngine } from "./capture/browser.js";
+export {
+  CaptureBrowserError,
+} from "./capture/browser.js";
+export {
+  CaptureNormalizationError,
+  capturedActionLabel,
+  selectStableLocator,
+} from "./capture/locators.js";
+export { normalizeCapturedInteractions } from "./capture/normalization.js";
+export type {
+  CaptureEngine,
+  CaptureHandle,
+  CaptureStartRequest,
+  NormalizeCaptureInput,
+  RawCaptureEvent,
+  RawCaptureNetworkObservation,
+  RawLocatorCandidates,
+} from "./capture/types.js";
 export {
   classifyApiFailure,
   classifyDoubleAction,

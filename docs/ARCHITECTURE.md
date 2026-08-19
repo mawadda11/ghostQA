@@ -8,10 +8,15 @@ configuration, browser execution, orchestration, persistence, and presentation.
 ```mermaid
 flowchart LR
     D[React Dashboard] -->|validated JSON API| A[Express API]
+    A --> CS[CaptureSessionService]
+    CS --> CE[Semantic Capture Engine]
+    CE --> C[Playwright Chromium]
+    CE --> N[Existing NormalizedFlow]
+    N --> D
     A --> O[RunOrchestrator]
     O --> B[Baseline Engine]
     O --> S[Scenario Engine]
-    B --> C[Playwright Chromium]
+    B --> C
     S --> C
     C --> T[Allowlisted Target]
     B --> R[Structured Report]
@@ -50,6 +55,35 @@ flowchart TD
 code. The dashboard never imports the test engine or accesses SQLite/artifact
 paths directly.
 
+## Interactive capture lifecycle
+
+```mermaid
+flowchart LR
+    U[User in headed Chromium] --> E[Raw semantic events]
+    E --> N[Deterministic normalization]
+    N --> R[Dashboard review]
+    R -->|confirm optional critical action and assertions| F[NormalizedFlow]
+    F --> P[Existing flow persistence API]
+    P --> B[Existing baseline/scenario engines]
+```
+
+The persistence-free capture engine installs DOM listeners in a dedicated
+Chromium context. It coalesces complete fills, records meaningful clicks and
+selects, observes URL boundaries, and retains only request method, pathname,
+status, and time. Locator selection prefers unique role/name, label, test ID,
+visible text, then a stable unique ID/name CSS fallback. Clearly generated URL
+path identifiers are wildcarded for repeatable replay.
+
+The Express `CaptureSessionService` owns in-memory session lifetime, project
+lookup, target reauthorization, stop/cancel/error cleanup, and transient review
+drafts. Capture is never persisted automatically. The reviewed draft is turned
+into the same `NormalizedFlow` contract and saved through the existing flow API.
+A critical action is optional. Step-bound flow assertions are evaluated
+immediately after their referenced step; the original `successAssertion`
+remains an optional backward-compatible final assertion.
+Capture navigation to a hostname outside the exact allowlist is blocked and
+ends the session; opening another browser page also ends the V1 capture.
+
 ## Workspaces
 
 ### `packages/shared`
@@ -60,11 +94,11 @@ errors. It contains no target-specific fixtures and no runtime dependencies.
 
 ### `packages/test-engine`
 
-Persistence-free Playwright execution. It validates targets and normalized
-configuration, launches Chromium, creates an isolated context for every
-baseline/scenario execution, applies typed behavior/fault injection, collects
-network and browser observations, classifies conservatively, and finalizes
-screenshots/traces and browser resources in error paths.
+Persistence-free Playwright execution and semantic baseline capture. It
+validates targets and normalized configuration, launches Chromium, normalizes
+capture events into the existing flow model, creates isolated execution
+contexts, applies typed behavior/fault injection, collects observations,
+classifies conservatively, and finalizes browser resources in error paths.
 
 ### `apps/server`
 
@@ -73,6 +107,7 @@ Express owns the public application boundary:
 - Zod validation before persistence or execution;
 - exact target-host authorization and HTTP(S)/credential checks;
 - project, flow, scenario, run, result, and artifact APIs;
+- transient baseline-capture session APIs and headed-browser cleanup;
 - synchronous in-process `RunOrchestrator` execution;
 - report-to-Prisma mapping and validated JSON serialization;
 - SQLite persistence and filesystem artifact metadata;
@@ -81,6 +116,21 @@ Express owns the public application boundary:
 Prisma models are `Project`, `Flow`, `FlowStep`, `Scenario`, `TestRun`,
 `TestResult`, and `Artifact`. Nested browser observations remain typed JSON.
 Binary screenshots and trace ZIPs are never stored in SQLite.
+
+The server also owns the deterministic focused-plan recommendation layer. It
+derives a small default selection from normalized steps, the user-selected
+critical action/request, URL transitions, and confirmed locators/assertions.
+Only safely inferred navigation expectations are selected, and Session Expiry
+is never enabled without explicit authentication configuration. The dashboard
+maps the focused plan and manual overrides back to the existing validated
+`ScenarioDefinition` contracts; there is no second execution model.
+
+Double Action inspects only small successful JSON responses in memory, chooses
+a conservative top-level identifier candidate, and persists only field/source
+metadata plus SHA-256 prefixes. API Failure and Slow Response derive a
+runtime-only stable control fallback before activation so accessible-name
+changes do not hide pending/stuck state. They persist state booleans and text
+change indicators, never response bodies or control text.
 
 Artifact downloads accept only a database artifact ID. Persisted relative paths
 are resolved lexically and through the real filesystem, then checked against the
@@ -92,7 +142,13 @@ React, Vite, Tailwind CSS, React Router, and TanStack Query provide project and
 flow configuration, scenario enablement, run initiation/history, result
 summaries, structured evidence, screenshot viewing, and trace download. All
 displayed run data comes from the API. Sensitive fill values are masked in the
-normal flow view.
+normal flow view. The compact capture review supports deletion/reordering,
+locator/value correction, optional critical-action selection, multiple
+step-bound `TEXT_VISIBLE` assertions, and an optional legacy final assertion.
+The flow page can replay only the baseline and review a focused test plan before
+optionally customizing it. A project page lists every independent journey and
+starts first/additional captures against the same project. JSON imports remain
+available in Advanced mode.
 
 ### `apps/demo-target`
 
@@ -125,6 +181,12 @@ the developer. It rejects wildcard target hosts, unsupported protocols, and
 embedded URL credentials. Scenario schemas expose controlled actions and
 observations, not arbitrary JavaScript. Network request/response bodies are not
 captured. API clients receive stable error codes and no raw stack traces.
+
+Capture sessions are local and transient: active sessions expire after 30
+minutes and terminal drafts are retained in memory for one hour. Restarting the
+server discards them. Password fields are tagged sensitive and visually masked;
+their values are still stored in local flow JSON/SQLite because replay requires
+them. V1 deliberately has no secrets vault or at-rest encryption.
 
 ## Deployment model
 

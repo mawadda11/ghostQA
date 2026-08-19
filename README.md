@@ -2,7 +2,7 @@
 
 **Adaptive Web Behavior Testing Platform**
 
-GhostQA starts from a known-good web journey, replays it under controlled
+GhostQA captures or imports a known-good web journey, replays it under controlled
 failure and user-behavior conditions in a real Chromium browser, and produces
 evidence-backed `PASS`, `FAIL`, `NEEDS_REVIEW`, or `ERROR` results.
 
@@ -23,7 +23,8 @@ ordinary E2E tests.
 
 ```mermaid
 flowchart LR
-    B[Known-good baseline] --> V[Validate baseline]
+    I[Semantic browser capture] --> B[Normalized baseline]
+    B --> V[Validate baseline]
     V --> M[Apply configured scenario mutation]
     M --> C[Run in isolated Chromium context]
     C --> O[Observe browser and network behavior]
@@ -33,20 +34,22 @@ flowchart LR
 ```
 
 Every full run validates the baseline first. A failed baseline is persisted and
-stops scenario execution. Enabled scenarios then run sequentially in isolated
-browser contexts. Deterministic classifiers use observed evidence; ambiguous
-behavior becomes `NEEDS_REVIEW`, never invented certainty.
+stops scenario execution. GhostQA first proposes a focused plan of only the
+applicable scenario instances, then runs the enabled instances sequentially in
+isolated browser contexts. Deterministic classifiers use observed evidence;
+ambiguous behavior becomes `NEEDS_REVIEW`, never invented certainty.
 
 ## V1 scenarios
 
 GhostQA V1 supports exactly five scenario families:
 
-- **Double Action** — triggers the critical action twice immediately and checks
-  for confirmed duplicate mutations.
-- **API Failure** — returns HTTP 500 for a configured request and checks explicit
-  broken or recovery states.
-- **Slow Response** — delays a configured request and observes repeatability,
-  prevention, mutation count, and final state.
+- **Double Action** — triggers the critical action twice and can prove distinct
+  outcomes from fingerprinted high-confidence JSON identifiers.
+- **API Failure** — returns HTTP 500 and automatically observes assertion,
+  critical-control recovery, semantic status, and browser-error evidence;
+  explicit expected states remain available.
+- **Slow Response** — delays a configured request and automatically observes
+  critical-control pending/repeatability state, mutation count, and final state.
 - **Refresh / Back Navigation** — refreshes or navigates back at a configured
   checkpoint and verifies expected state. Refresh and Back are separate
   instances of this family.
@@ -122,6 +125,58 @@ All defaults work without an `.env` file. See [.env.example](.env.example) for
 optional ports, CORS origins, target hosts, API URL, and artifact-root settings.
 The SQLite file and ordinary runtime artifacts are ignored by Git.
 
+Automated server and persisted-browser tests never use that development
+database. Each test invocation creates a uniquely named SQLite database in the
+operating-system temporary directory, applies every checked-in migration,
+supplies an explicit absolute `DATABASE_URL`, and removes the database
+afterward. Test mode refuses to use `apps/server/prisma/dev.db`. The manual
+`demo:seed` and `demo:persisted-run` commands intentionally use the configured
+development server; their `demo:test:*` counterparts use an isolated server and
+database.
+
+## Interactive baseline capture
+
+For a new target, create a project with its allowlisted URL and choose
+**Capture first flow**. GhostQA opens a dedicated headed Chromium window. Perform
+the known-good journey there, return to the dashboard, and choose **Stop
+capture**. Review the semantic steps, add user-confirmed assertions at
+meaningful points, and optionally confirm a critical click plus mutation request
+when one exists. Then save, replay the baseline, review the automatically
+generated **Focused plan**, and run it or choose **Customize test plan**.
+
+```text
+Create Project -> Capture first flow -> perform journey -> Stop
+  -> Review -> Save -> Replay Baseline -> Focused plan
+  -> Run tests -> Inspect evidence
+```
+
+Capture observes rendered DOM/accessibility interactions, URL changes, and safe
+network metadata. It does **not** record screen pixels or video and does not need
+the target's source repository. The saved result is the ordinary
+`NormalizedFlow` consumed by the existing baseline and scenario engines. A
+flow may contain multiple step-bound assertions plus the backward-compatible
+final assertion. Read-only flows do not need a critical action. **Advanced /
+Import baseline JSON** remains available.
+
+Final-page suggestions prioritize short visible headings and status/alert text.
+They are clickable suggestions only; the user confirms every business
+expectation. Test-plan recommendations are deterministic—not AI—and derive only
+from captured steps, selected critical metadata, URL transitions, and the five
+supported contracts. The focused test budget selects only justified, ready
+instances; Session Expiry is never inferred without authentication evidence.
+Missing configuration is shown explicitly. Scenario JSON import remains under
+**Advanced** rather than the normal workflow.
+
+A Project represents one target application; a Flow represents one captured
+journey within it. Existing projects expose **Capture another flow**, and each
+flow keeps independent assertions, critical metadata, test plan, and runs.
+
+Password inputs are marked sensitive and masked in dashboard flow views and the
+capture editor. For local/staging V1, the value must still be stored in the
+flow's SQLite JSON so Chromium can replay it; there is no secrets vault or
+at-rest encryption. Capture sessions and drafts are in server memory, expire,
+and are lost when the server restarts.
+
 ## GhostShop demo
 
 GhostShop is a separate, deliberately buggy storefront fixture. It is not the
@@ -147,13 +202,15 @@ One actual local GhostShop run produced:
 Baseline: PASS
 Double Action: FAIL
 API Failure: FAIL
-Slow Response: NEEDS_REVIEW
+Slow Response: PASS
 Refresh: FAIL
 Back: PASS
 Session Expiry: FAIL
 ```
 
-These are observed demo results, not hard-coded product behavior.
+These are observed demo results, not hard-coded product behavior. Slow Response
+passes because the real browser proves one mutation, a stable pending control,
+a passing final assertion, and no unexpected page error.
 
 ![Persisted run details](docs/images/run-detail.png)
 
@@ -182,7 +239,8 @@ scanning service.
 - sequential, in-process execution
 - local SQLite and filesystem artifacts
 - localhost or explicitly allowlisted staging targets
-- normalized JSON import instead of a custom browser recorder
+- transient, single-process baseline capture sessions
+- password values are masked in the UI but stored locally for replay
 - no AI or LLM scenario generation
 - no CI/CD integration, scheduling, queues, or distributed workers
 - no GhostQA accounts, teams, or hosted deployment
@@ -204,6 +262,7 @@ scanning service.
 | `npm run demo:test:scenarios` | Real Chromium scenario proof |
 | `npm run demo:test:persisted-run` | Real persistence/API browser proof |
 | `npm run demo:test:dashboard` | Real dashboard workflow proof |
+| `npm run capture:test:chromium` | Real Chromium capture/replay and allowlist proof |
 | `npm run verify` | Fast tests, lint, strict typecheck, and build |
 | `npm run verify:e2e` | All real Chromium proofs; services must be running |
 

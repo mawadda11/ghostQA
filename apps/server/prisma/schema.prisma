@@ -70,8 +70,9 @@ model Flow {
   id                   String     @id @default(cuid())
   projectId            String
   name                 String
-  criticalActionJson   String
-  successAssertionJson String
+  criticalActionJson   String?
+  successAssertionJson String?
+  assertionsJson       String     @default("[]")
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
   project              Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)

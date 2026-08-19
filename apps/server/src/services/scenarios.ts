@@ -115,6 +115,61 @@ export const upsertScenarioPlan = async (
   return records.map(toPersistedScenario);
 };
 
+export const replaceScenarioPlan = async (
+  prisma: PrismaClient,
+  flowId: string,
+  definitions: readonly ScenarioDefinition[],
+  allowedHosts: ReadonlySet<string>,
+): Promise<PersistedScenario[]> => {
+  const flow = await getFlowExecutionRecord(prisma, flowId);
+  const keys = new Set<string>();
+  for (const definition of definitions) {
+    if (keys.has(definition.id)) {
+      throw new ApiError(
+        400,
+        "INVALID_REQUEST",
+        `Scenario key "${definition.id}" must be unique within the plan.`,
+      );
+    }
+    keys.add(definition.id);
+    validateDefinitionForFlow(definition, flow, allowedHosts);
+  }
+
+  const records = await prisma.$transaction([
+    prisma.scenario.deleteMany({
+      where: { flowId, scenarioKey: { notIn: [...keys] } },
+    }),
+    ...definitions.map((definition) =>
+      prisma.scenario.upsert({
+        where: { flowId_scenarioKey: { flowId, scenarioKey: definition.id } },
+        create: {
+          flowId,
+          scenarioKey: definition.id,
+          name: definition.name,
+          family: definition.family,
+          enabled: true,
+          configJson: serializeValidatedJson(
+            definition.config,
+            scenarioConfigSchema,
+            `Scenario ${definition.id} configuration`,
+          ),
+        },
+        update: {
+          name: definition.name,
+          family: definition.family,
+          enabled: true,
+          configJson: serializeValidatedJson(
+            definition.config,
+            scenarioConfigSchema,
+            `Scenario ${definition.id} configuration`,
+          ),
+        },
+      }),
+    ),
+  ]);
+  return records.slice(1).map((record) => toPersistedScenario(record as ScenarioRecord));
+};
+
 export const listFlowScenarios = async (
   prisma: PrismaClient,
   flowId: string,

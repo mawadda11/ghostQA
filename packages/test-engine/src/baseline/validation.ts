@@ -2,6 +2,7 @@ import type {
   BaselineExecutionRequest,
   FlowStep,
   LocatorSpec,
+  SuccessAssertion,
 } from "@ghostqa/shared";
 
 export class BaselineValidationError extends Error {
@@ -42,6 +43,28 @@ const locatorForStep = (step: FlowStep): LocatorSpec | undefined => {
     case "NAVIGATE":
     case "WAIT_FOR_URL":
       return undefined;
+  }
+};
+
+const validateAssertion = (
+  assertion: SuccessAssertion,
+  label: string,
+): void => {
+  if (assertion.kind === "URL_MATCHES") {
+    if (assertion.value.trim().length === 0) {
+      throw new BaselineValidationError(`${label} contains an empty URL matcher.`);
+    }
+    return;
+  }
+  if (assertion.kind === "ELEMENT_VISIBLE") {
+    validateLocator(assertion.locator, label);
+    return;
+  }
+  if (assertion.text.trim().length === 0) {
+    throw new BaselineValidationError(`${label} contains empty visible text.`);
+  }
+  if (assertion.locator !== undefined) {
+    validateLocator(assertion.locator, label);
   }
 };
 
@@ -141,23 +164,53 @@ export const validateBaselineRequest = (
     }
   });
 
-  const criticalStep = request.flow.steps.find(
-    (step) => step.id === request.flow.criticalAction.stepId,
-  );
-  if (criticalStep?.action !== "CLICK") {
+  if (request.flow.criticalAction !== undefined) {
+    const criticalStep = request.flow.steps.find(
+      (step) => step.id === request.flow.criticalAction?.stepId,
+    );
+    if (criticalStep?.action !== "CLICK") {
+      throw new BaselineValidationError(
+        "The critical action must reference a CLICK step in the flow.",
+      );
+    }
+
+    const requestMatcher = request.flow.criticalAction.request;
+    if (
+      requestMatcher !== undefined &&
+      (requestMatcher.method.trim().length === 0 ||
+        !requestMatcher.pathname.startsWith("/"))
+    ) {
+      throw new BaselineValidationError(
+        "Critical request metadata requires a method and absolute pathname.",
+      );
+    }
+  }
+
+  if (
+    request.flow.successAssertion === undefined &&
+    (request.flow.assertions?.length ?? 0) === 0
+  ) {
     throw new BaselineValidationError(
-      "The critical action must reference a CLICK step in the flow.",
+      "A baseline flow requires a final assertion or a step-bound assertion.",
     );
   }
 
-  const requestMatcher = request.flow.criticalAction.request;
-  if (
-    requestMatcher !== undefined &&
-    (requestMatcher.method.trim().length === 0 ||
-      !requestMatcher.pathname.startsWith("/"))
-  ) {
-    throw new BaselineValidationError(
-      "Critical request metadata requires a method and absolute pathname.",
-    );
+  if (request.flow.successAssertion !== undefined) {
+    validateAssertion(request.flow.successAssertion, "The final assertion");
+  }
+  const assertionIds = new Set<string>();
+  for (const assertion of request.flow.assertions ?? []) {
+    if (assertion.id.trim().length === 0 || assertionIds.has(assertion.id)) {
+      throw new BaselineValidationError(
+        `Flow assertion IDs must be non-empty and unique; received "${assertion.id}".`,
+      );
+    }
+    assertionIds.add(assertion.id);
+    if (!stepIds.has(assertion.afterStepId)) {
+      throw new BaselineValidationError(
+        `Flow assertion "${assertion.id}" references an unknown step.`,
+      );
+    }
+    validateAssertion(assertion.assertion, `Flow assertion "${assertion.id}"`);
   }
 };

@@ -90,9 +90,10 @@ const locatorSearchText = (locator: LocatorSpec): string => {
 
 export const isSensitiveFillStep = (step: FlowStep): boolean =>
   step.action === "FILL" &&
-  /password|passcode|secret|token|credential|api[-_ ]?key/i.test(
-    locatorSearchText(step.locator),
-  );
+  (step.sensitive === true ||
+    /password|passcode|secret|token|credential|api[-_ ]?key/i.test(
+      locatorSearchText(step.locator),
+    ));
 
 export const describeFlowStep = (step: FlowStep): string => {
   switch (step.action) {
@@ -182,4 +183,3 @@ export const totalSummary = (
     }),
     { total: 0, passed: 0, failed: 0, needsReview: 0, errors: 0 },
   );
-

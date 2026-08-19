@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { AppShell } from "./components/AppShell.js";
 import { FlowDetailPage } from "./pages/FlowDetailPage.js";
+import { CaptureBaselinePage } from "./pages/CaptureBaselinePage.js";
 import { NotFoundPage } from "./pages/NotFoundPage.js";
 import { OverviewPage } from "./pages/OverviewPage.js";
 import { ProjectDetailPage } from "./pages/ProjectDetailPage.js";
@@ -16,6 +17,10 @@ export const App = () => (
       <Route element={<OverviewPage />} index />
       <Route element={<ProjectsPage />} path="projects" />
       <Route element={<ProjectDetailPage />} path="projects/:projectId" />
+      <Route
+        element={<CaptureBaselinePage />}
+        path="projects/:projectId/capture/:captureId"
+      />
       <Route element={<FlowDetailPage />} path="flows/:flowId" />
       <Route element={<RunsPage />} path="runs" />
       <Route element={<RunDetailPage />} path="runs/:runId" />

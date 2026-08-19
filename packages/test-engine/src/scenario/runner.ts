@@ -13,6 +13,7 @@ import { chromium } from "playwright";
 import type { Browser, BrowserContext, Page } from "playwright";
 
 import { createExecutionArtifactPaths } from "../baseline/artifacts.js";
+import { primaryFlowAssertion } from "../baseline/flow-assertions.js";
 import { BrowserEvidenceCollector } from "../runtime/browser-evidence.js";
 import { ApiFailureExecutor } from "./api-failure.js";
 import { consoleEvidenceEntries } from "./evidence.js";
@@ -45,7 +46,7 @@ const notEvaluatedAssertion = (
   request: ScenarioExecutionRequest,
   detail = "The success assertion was not evaluated.",
 ): SuccessAssertionResult => ({
-  assertion: request.flow.successAssertion,
+  assertion: primaryFlowAssertion(request.flow),
   status: "NOT_EVALUATED",
   detail,
 });

@@ -9,6 +9,7 @@ import type { Page, Response } from "playwright";
 
 import { resolveLocator } from "../baseline/locators.js";
 import { evaluateSuccessAssertion } from "../baseline/success-assertion.js";
+import { primaryFlowAssertion } from "../baseline/flow-assertions.js";
 import { createEvidenceEntry } from "./evidence.js";
 import { executeSteps, ScenarioFlowStepError } from "./flow.js";
 import { requestMatches } from "./request-matching.js";
@@ -20,9 +21,12 @@ export interface TimedResponse {
 }
 
 export const criticalStep = (context: ScenarioExecutionContext): FlowStep => {
+  const criticalAction = context.request.flow.criticalAction;
+  if (criticalAction === undefined) {
+    throw new Error("This scenario requires a configured critical action.");
+  }
   const step = context.request.flow.steps.find(
-    (candidate) =>
-      candidate.id === context.request.flow.criticalAction.stepId,
+    (candidate) => candidate.id === criticalAction.stepId,
   );
   if (step?.action !== "CLICK") {
     throw new Error("The configured critical action is not a CLICK step.");
@@ -33,8 +37,12 @@ export const criticalStep = (context: ScenarioExecutionContext): FlowStep => {
 export const replayBeforeCritical = async (
   context: ScenarioExecutionContext,
 ): Promise<void> => {
+  const criticalAction = context.request.flow.criticalAction;
+  if (criticalAction === undefined) {
+    throw new Error("This scenario requires a configured critical action.");
+  }
   const criticalIndex = context.request.flow.steps.findIndex(
-    (step) => step.id === context.request.flow.criticalAction.stepId,
+    (step) => step.id === criticalAction.stepId,
   );
   await executeSteps(
     context.page,
@@ -124,7 +132,7 @@ export const evaluateAndRecordAssertion = async (
 ): Promise<SuccessAssertionResult> => {
   const result = await evaluateSuccessAssertion(
     context.page,
-    assertionWithTimeout(context.request.flow.successAssertion, timeoutMs),
+    assertionWithTimeout(primaryFlowAssertion(context.request.flow), timeoutMs),
   );
   context.evidence.push(
     createEvidenceEntry(
@@ -139,7 +147,7 @@ export const evaluateAndRecordAssertion = async (
 export const notEvaluatedAssertion = (
   context: ScenarioExecutionContext,
 ): SuccessAssertionResult => ({
-  assertion: context.request.flow.successAssertion,
+  assertion: primaryFlowAssertion(context.request.flow),
   status: "NOT_EVALUATED",
   detail: "The baseline success assertion does not apply at this scenario checkpoint.",
 });
@@ -191,22 +199,3 @@ export const successfulResponses = (
   responses.filter(
     ({ response }) => response.status() >= 200 && response.status() < 300,
   );
-
-export const extractResponseIdentifier = async (
-  response: Response,
-  field: string | undefined,
-): Promise<string | undefined> => {
-  if (field === undefined) return undefined;
-  try {
-    const body: unknown = await response.json();
-    if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      return undefined;
-    }
-    const value = (body as Record<string, unknown>)[field];
-    return typeof value === "string" || typeof value === "number"
-      ? String(value).slice(0, 128)
-      : undefined;
-  } catch {
-    return undefined;
-  }
-};

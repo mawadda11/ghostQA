@@ -9,6 +9,7 @@ import {
   listProjectFlows,
   updateProject,
 } from "../api/projects.js";
+import { startCapture } from "../api/capture.js";
 import { listProjectRuns } from "../api/runs.js";
 import { EmptyState, ErrorState, LoadingState } from "../components/AsyncState.js";
 import { JsonImportDialog } from "../components/JsonImportDialog.js";
@@ -44,21 +45,30 @@ export const ProjectDetailPage = () => {
       navigate(`/flows/${created.id}`);
     },
   });
+  const captureMutation = useMutation({
+    mutationFn: () => startCapture(projectId),
+    onSuccess: (session) =>
+      navigate(`/projects/${projectId}/capture/${session.id}`),
+  });
 
   if (project.isPending || flows.isPending || runs.isPending) return <LoadingState label="Loading project…" />;
   if (project.isError || flows.isError || runs.isError) {
     return <ErrorState error={project.error ?? flows.error ?? runs.error} onRetry={() => { void project.refetch(); void flows.refetch(); void runs.refetch(); }} />;
   }
+  const captureLabel =
+    flows.data.length === 0 ? "Capture first flow" : "Capture another flow";
 
   return (
     <div className="space-y-8">
       <div className="text-sm text-slate-500"><Link className="hover:text-cyan-300" to="/projects">Projects</Link><span className="px-2">/</span><span className="text-slate-300">{project.data.name}</span></div>
       <PageHeader
-        actions={<><button className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 hover:border-slate-600" onClick={() => setEditing(true)} type="button">Edit project</button><button className="rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-200" onClick={() => setImportingFlow(true)} type="button">Register flow</button></>}
+        actions={<><button className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 hover:border-slate-600" onClick={() => setEditing(true)} type="button">Edit project</button><button className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 hover:border-cyan-300/40" onClick={() => setImportingFlow(true)} type="button">Advanced / Import baseline JSON</button><button className="rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-200 disabled:opacity-50" disabled={captureMutation.isPending} onClick={() => captureMutation.mutate()} type="button">{captureMutation.isPending ? "Opening Chromium…" : captureLabel}</button></>}
         description={project.data.description ?? "No project description provided."}
         eyebrow="Project"
         title={project.data.name}
       />
+
+      {captureMutation.isError ? <ErrorState error={captureMutation.error} title="Baseline capture could not start" /> : null}
 
       <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <article className="rounded-xl border border-slate-800 bg-slate-900/55 p-5">
@@ -74,7 +84,7 @@ export const ProjectDetailPage = () => {
       <section className="space-y-4" aria-labelledby="flows-heading">
         <div><h2 className="text-lg font-semibold text-white" id="flows-heading">Baseline flows</h2><p className="mt-1 text-sm text-slate-500">Normalized known-good journeys registered for this target.</p></div>
         {flows.data.length === 0 ? (
-          <EmptyState action={<button className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950" onClick={() => setImportingFlow(true)} type="button">Import normalized flow</button>} message="Use a normalized JSON flow from your Playwright/codegen workflow. A custom recorder is outside V1." title="No baseline flows registered" />
+          <EmptyState action={<div className="flex flex-wrap justify-center gap-2"><button className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50" disabled={captureMutation.isPending} onClick={() => captureMutation.mutate()} type="button">{captureLabel}</button><button className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200" onClick={() => setImportingFlow(true)} type="button">Advanced / Import baseline JSON</button></div>} message="Open a controlled Chromium window, perform one known-good journey, then review the normalized steps before saving it to this project." title="No baseline flows registered" />
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
             {flows.data.map((flow) => (
@@ -97,4 +107,3 @@ export const ProjectDetailPage = () => {
     </div>
   );
 };
-

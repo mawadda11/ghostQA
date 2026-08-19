@@ -56,7 +56,8 @@ export interface ApiFailureScenarioConfig extends CheckpointScenarioConfig {
   family: "API_FAILURE";
   request?: NetworkRequestMatcher;
   statusCode: 500;
-  brokenState: ElementObservation;
+  /** Optional: when omitted, the engine uses conservative generic recovery evidence. */
+  brokenState?: ElementObservation;
   recoveryState?: ElementObservation;
   assertionTimeoutMs?: number;
 }
@@ -189,6 +190,11 @@ export interface SuccessAssertionResult {
   detail: string;
 }
 
+export interface FlowAssertionResult extends SuccessAssertionResult {
+  id: string;
+  afterStepId?: string;
+}
+
 export interface ExecutionErrorObservation {
   source: "FLOW_STEP" | "ENGINE";
   name: string;
@@ -201,6 +207,9 @@ export interface BaseExecutionReport {
   evidence: ExecutionEvidence;
   artifacts: readonly ArtifactDescriptor[];
   executedSteps: readonly ExecutedStep[];
+  /** All evaluated or pending step-bound and final assertions, in flow order. */
+  assertions?: readonly FlowAssertionResult[];
+  /** The final/last assertion result retained for older API consumers. */
   assertion: SuccessAssertionResult;
   executionError?: ExecutionErrorObservation;
   startedAt: string;

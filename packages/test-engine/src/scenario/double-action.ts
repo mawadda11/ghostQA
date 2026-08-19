@@ -7,7 +7,6 @@ import {
   criticalStep,
   evaluateAndRecordAssertion,
   executeRapidCriticalClicks,
-  extractResponseIdentifier,
   replayBeforeCritical,
   responseEvidence,
   successfulResponses,
@@ -18,6 +17,7 @@ import type {
   ScenarioOutcome,
 } from "./types.js";
 import { resolveScenarioRequestMatcher } from "./validation.js";
+import { inspectResponseIdentifiers } from "./response-identifiers.js";
 
 export class DoubleActionExecutor implements ScenarioExecutor {
   async execute(context: ScenarioExecutionContext): Promise<ScenarioOutcome> {
@@ -48,14 +48,19 @@ export class DoubleActionExecutor implements ScenarioExecutor {
     context.evidence.push(...responseEvidence(matcher, responses));
 
     const successful = successfulResponses(responses);
-    const identifiers = (
-      await Promise.all(
-        successful.map(({ response }) =>
-          extractResponseIdentifier(response, config.identifierField),
+    const identifierProof = await inspectResponseIdentifiers(
+      successful.map(({ response }) => response),
+      {
+        ...(config.identifierField === undefined
+          ? {}
+          : { configuredField: config.identifierField }),
+        capturedInputValues: context.request.flow.steps.flatMap((flowStep) =>
+          flowStep.action === "FILL" || flowStep.action === "SELECT_OPTION"
+            ? [flowStep.value]
+            : [],
         ),
-      )
-    ).filter((value): value is string => value !== undefined);
-    const distinctIdentifiers = new Set(identifiers);
+      },
+    );
     const firstResponse = responses[0];
     const lastResponse = responses.at(-1);
     const observedWindowMs =
@@ -65,12 +70,22 @@ export class DoubleActionExecutor implements ScenarioExecutor {
     context.evidence.push(
       createEvidenceEntry(
         "DUPLICATE_REQUEST",
-        `${successful.length} successful matching mutation request(s) observed.`,
+        identifierProof.distinctCount >= 2
+          ? `${successful.length} successful matching mutation requests produced distinct fingerprinted identifiers.`
+          : `${successful.length} successful matching mutation request(s) observed; distinct outcomes were not proven.`,
         {
           count: responses.length,
           successfulCount: successful.length,
-          identifiers,
-          distinctIdentifierCount: distinctIdentifiers.size,
+          distinctIdentifierCount: identifierProof.distinctCount,
+          ...(identifierProof.field === undefined
+            ? {}
+            : { identifierField: identifierProof.field }),
+          ...(identifierProof.source === undefined
+            ? {}
+            : { identifierSource: identifierProof.source }),
+          ...(identifierProof.fingerprints.length === 0
+            ? {}
+            : { identifierFingerprints: identifierProof.fingerprints }),
           ...(observedWindowMs === undefined ? {} : { observedWindowMs }),
         },
       ),
@@ -80,7 +95,7 @@ export class DoubleActionExecutor implements ScenarioExecutor {
     return {
       classification: classifyDoubleAction({
         successfulMutationCount: successful.length,
-        distinctIdentifierCount: distinctIdentifiers.size,
+        distinctIdentifierCount: identifierProof.distinctCount,
         assertionPassed: assertion.status === "PASSED",
       }),
       assertion,

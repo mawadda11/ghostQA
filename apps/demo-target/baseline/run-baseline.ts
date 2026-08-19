@@ -37,7 +37,7 @@ const report = await engine.execute({
   artifactDirectory,
 });
 
-const requestMatcher = ghostShopBaselineFlow.criticalAction.request;
+const requestMatcher = ghostShopBaselineFlow.criticalAction?.request;
 const orderObservation = report.evidence.network.find((observation) => {
   if (requestMatcher === undefined) {
     return false;

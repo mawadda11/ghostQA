@@ -33,6 +33,18 @@ describe("dashboard result presentation", () => {
     expect(describeFlowStep(step)).toContain("developer@example.test");
   });
 
+  it("honors the recorder sensitive marker without relying on locator wording", () => {
+    const step: FlowStep = {
+      id: "access-code",
+      position: 0,
+      action: "FILL",
+      locator: { kind: "LABEL", text: "Access value" },
+      value: "captured-secret",
+      sensitive: true,
+    };
+    expect(describeFlowStep(step)).not.toContain("captured-secret");
+  });
+
   it("uses text labels and distinct tones for result states", () => {
     expect(statusLabel("NEEDS_REVIEW")).toBe("NEEDS REVIEW");
     expect(statusClasses("PASS")).toContain("emerald");

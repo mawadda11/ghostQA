@@ -1,8 +1,13 @@
 import { createApp } from "./app.js";
 import { environment } from "./config/environment.js";
 import { prisma } from "./db/prisma.js";
+import { CaptureSessionService } from "./services/capture.js";
 
-const app = createApp();
+const captureService = new CaptureSessionService({
+  prisma,
+  allowedHosts: environment.allowedTargetHosts,
+});
+const app = createApp({ captureService });
 
 const server = app.listen(environment.port, () => {
   console.log(`GhostQA server listening on http://localhost:${environment.port}`);
@@ -11,9 +16,12 @@ const server = app.listen(environment.port, () => {
 const shutdown = (signal: NodeJS.Signals): void => {
   console.log(`Received ${signal}; shutting down GhostQA server.`);
   server.close(() => {
-    void prisma.$disconnect().finally(() => {
-      process.exit(0);
-    });
+    void captureService
+      .shutdown()
+      .then(() => prisma.$disconnect())
+      .finally(() => {
+        process.exit(0);
+      });
   });
 };
 

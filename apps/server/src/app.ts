@@ -8,13 +8,18 @@ import { createApiRouter } from "./api/routes.js";
 import { environment } from "./config/environment.js";
 import { prisma } from "./db/prisma.js";
 import type { RunOrchestrator } from "./services/orchestrator.js";
+import {
+  CaptureSessionService,
+} from "./services/capture.js";
+import type { CaptureSessionManager } from "./services/capture.js";
 
 export interface AppOptions {
   prisma?: PrismaClient;
   allowedHosts?: ReadonlySet<string>;
   artifactRoot?: string;
   dashboardOrigins?: ReadonlySet<string>;
-  orchestrator?: RunOrchestrator;
+  orchestrator?: Pick<RunOrchestrator, "runFlow">;
+  captureService?: CaptureSessionManager;
 }
 
 export const createApp = (options: AppOptions = {}): express.Express => {
@@ -22,6 +27,9 @@ export const createApp = (options: AppOptions = {}): express.Express => {
   const database = options.prisma ?? prisma;
   const allowedHosts = options.allowedHosts ?? environment.allowedTargetHosts;
   const artifactRoot = options.artifactRoot ?? environment.artifactRoot;
+  const captureService =
+    options.captureService ??
+    new CaptureSessionService({ prisma: database, allowedHosts });
 
   app.disable("x-powered-by");
   app.use(
@@ -46,6 +54,7 @@ export const createApp = (options: AppOptions = {}): express.Express => {
       prisma: database,
       allowedHosts,
       artifactRoot,
+      captureService,
       ...(options.orchestrator === undefined
         ? {}
         : { orchestrator: options.orchestrator }),

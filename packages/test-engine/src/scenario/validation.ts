@@ -68,10 +68,10 @@ const matcherFor = (
     case "DOUBLE_ACTION":
     case "API_FAILURE":
     case "SLOW_RESPONSE":
-      return config.request ?? request.flow.criticalAction.request;
+      return config.request ?? request.flow.criticalAction?.request;
     case "SESSION_EXPIRY":
       return config.strategy.kind === "INTERCEPT_REQUEST"
-        ? config.strategy.request ?? request.flow.criticalAction.request
+        ? config.strategy.request ?? request.flow.criticalAction?.request
         : undefined;
     case "REFRESH_BACK_NAVIGATION":
       return undefined;
@@ -106,8 +106,16 @@ export const validateScenarioRequest = (
   }
 
   const config = request.scenario.config;
+  if (
+    config.family !== "REFRESH_BACK_NAVIGATION" &&
+    request.flow.criticalAction === undefined
+  ) {
+    throw new ScenarioValidationError(
+      `${request.scenario.name} requires a configured critical action.`,
+    );
+  }
   const criticalIndex = request.flow.steps.findIndex(
-    (step) => step.id === request.flow.criticalAction.stepId,
+    (step) => step.id === request.flow.criticalAction?.stepId,
   );
   const checkpointId =
     config.family === "DOUBLE_ACTION" ? undefined : config.checkpointStepId;
@@ -144,7 +152,9 @@ export const validateScenarioRequest = (
       break;
     case "API_FAILURE":
       validateMatcher(matcherFor(config, request), "API Failure");
-      validateObservation(config.brokenState, "API Failure broken state");
+      if (config.brokenState !== undefined) {
+        validateObservation(config.brokenState, "API Failure broken state");
+      }
       if (config.recoveryState !== undefined) {
         validateObservation(config.recoveryState, "API Failure recovery state");
       }

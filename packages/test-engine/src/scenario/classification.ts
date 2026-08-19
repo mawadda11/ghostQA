@@ -53,9 +53,15 @@ export const classifyDoubleAction = (input: {
 
 export const classifyApiFailure = (input: {
   injectedFailureObserved: boolean;
-  brokenStateMatched: boolean;
-  recoveryStateMatched: boolean;
+  brokenStateMatched?: boolean;
+  recoveryStateMatched?: boolean;
   assertionPassed: boolean;
+  automaticObservation?: {
+    controlStuck: boolean;
+    controlRecovered: boolean;
+    statusVisible: boolean;
+    pageErrorCount: number;
+  };
 }): ScenarioClassification => {
   if (!input.injectedFailureObserved) {
     return needsReview("The configured HTTP failure was not observed.");
@@ -67,17 +73,35 @@ export const classifyApiFailure = (input: {
     );
   }
 
-  if (input.brokenStateMatched) {
+  if (input.brokenStateMatched === true) {
     return targetFailure(
       "The configured broken state was confirmed after the injected HTTP failure.",
     );
   }
 
-  if (input.recoveryStateMatched) {
+  if (input.recoveryStateMatched === true) {
     return pass("The configured recovery state appeared after the HTTP failure.");
   }
 
-  return needsReview("Recovery after the injected HTTP failure was inconclusive.");
+  if (input.automaticObservation?.controlStuck === true) {
+    return targetFailure(
+      "The critical control remained stuck after the injected HTTP failure.",
+    );
+  }
+
+  if (
+    input.automaticObservation?.controlRecovered === true &&
+    input.automaticObservation.statusVisible &&
+    input.automaticObservation.pageErrorCount === 0
+  ) {
+    return pass(
+      "The application exposed a status state and restored the critical control after the HTTP failure.",
+    );
+  }
+
+  return needsReview(
+    "Automatic recovery evidence after the injected HTTP failure was inconclusive.",
+  );
 };
 
 export const classifySlowResponse = (input: {
@@ -85,6 +109,9 @@ export const classifySlowResponse = (input: {
   assertionPassed: boolean;
   repeatabilityMatched: boolean;
   preventionMatched: boolean;
+  safePendingState?: boolean;
+  stuckAfterCompletion?: boolean;
+  pageErrorCount?: number;
 }): ScenarioClassification => {
   if (input.successfulMutationCount >= 2) {
     return targetFailure(
@@ -92,9 +119,20 @@ export const classifySlowResponse = (input: {
     );
   }
 
-  if (input.assertionPassed && input.preventionMatched) {
+  if (input.stuckAfterCompletion === true) {
+    return targetFailure(
+      "The critical control remained stuck after the delayed request completed.",
+    );
+  }
+
+  if (
+    input.successfulMutationCount === 1 &&
+    input.assertionPassed &&
+    (input.preventionMatched || input.safePendingState === true) &&
+    (input.pageErrorCount ?? 0) === 0
+  ) {
     return pass(
-      "The action was protected from repetition and completed after the delay.",
+      "The control showed a protected pending state and the journey completed after the delay.",
     );
   }
 

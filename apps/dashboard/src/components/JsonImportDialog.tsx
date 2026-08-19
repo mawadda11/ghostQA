@@ -80,11 +80,11 @@ export const JsonImportDialog = ({
     <DialogFrame
       description={
         kind === "flow"
-          ? "Paste the normalized V1 flow produced by your Playwright/codegen normalization workflow."
+          ? "Advanced option: paste an existing normalized GhostQA flow instead of using interactive baseline capture."
           : "Paste explicit definitions for the supported V1 scenario families. The server validates every configuration."
       }
       onClose={submitting ? () => undefined : onClose}
-      title={kind === "flow" ? "Register normalized flow" : "Import scenario plan"}
+      title={kind === "flow" ? "Import baseline JSON" : "Import scenario plan"}
     >
       <form onSubmit={(event) => void submit(event)}>
         <div className="px-5 py-6 sm:px-6">

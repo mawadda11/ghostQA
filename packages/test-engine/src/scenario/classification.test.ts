@@ -73,6 +73,36 @@ describe("classifyApiFailure", () => {
       }).status,
     ).toBe("NEEDS_REVIEW");
   });
+
+  it("passes automatic recovery only with visible status and a restored control", () => {
+    expect(
+      classifyApiFailure({
+        injectedFailureObserved: true,
+        assertionPassed: false,
+        automaticObservation: {
+          controlStuck: false,
+          controlRecovered: true,
+          statusVisible: true,
+          pageErrorCount: 0,
+        },
+      }).status,
+    ).toBe("PASS");
+  });
+
+  it("fails an automatically observed stuck critical control", () => {
+    expect(
+      classifyApiFailure({
+        injectedFailureObserved: true,
+        assertionPassed: false,
+        automaticObservation: {
+          controlStuck: true,
+          controlRecovered: false,
+          statusVisible: true,
+          pageErrorCount: 0,
+        },
+      }).status,
+    ).toBe("FAIL");
+  });
 });
 
 describe("classifySlowResponse", () => {
@@ -107,6 +137,31 @@ describe("classifySlowResponse", () => {
         preventionMatched: false,
       }).status,
     ).toBe("FAIL");
+  });
+
+  it("fails a control that remains stuck after completion", () => {
+    expect(
+      classifySlowResponse({
+        successfulMutationCount: 1,
+        assertionPassed: false,
+        repeatabilityMatched: false,
+        preventionMatched: false,
+        stuckAfterCompletion: true,
+      }).status,
+    ).toBe("FAIL");
+  });
+
+  it("passes an automatically observed safe pending state", () => {
+    expect(
+      classifySlowResponse({
+        successfulMutationCount: 1,
+        assertionPassed: true,
+        repeatabilityMatched: false,
+        preventionMatched: false,
+        safePendingState: true,
+        pageErrorCount: 0,
+      }).status,
+    ).toBe("PASS");
   });
 });
 

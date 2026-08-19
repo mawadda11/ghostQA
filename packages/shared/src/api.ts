@@ -4,13 +4,17 @@ import type {
   EvidenceEntry,
   ExecutedStep,
   ExecutionErrorObservation,
+  ElementObservation,
+  FlowAssertionResult,
   NetworkObservation,
   ScenarioConfig,
   SuccessAssertionResult,
 } from "./engine.js";
 import type {
+  AriaRole,
   FailureOrigin,
   FlowStep,
+  FlowAssertion,
   Project,
   ResultStatus,
   ScenarioFamily,
@@ -28,7 +32,9 @@ export type ApiErrorCode =
   | "NOT_FOUND"
   | "TARGET_NOT_ALLOWED"
   | "BASELINE_FAILED"
-  | "RUN_EXECUTION_ERROR";
+  | "RUN_EXECUTION_ERROR"
+  | "CAPTURE_NOT_ACTIVE"
+  | "CAPTURE_FAILED";
 
 export interface ApiErrorResponse {
   error: {
@@ -47,10 +53,59 @@ export interface PersistedFlow {
   projectId: string;
   name: string;
   steps: readonly FlowStep[];
-  criticalAction: CriticalAction;
-  successAssertion: SuccessAssertion;
+  criticalAction?: CriticalAction;
+  successAssertion?: SuccessAssertion;
+  assertions?: readonly FlowAssertion[];
   createdAt: string;
   updatedAt: string;
+}
+
+export type TestPlanRecommendationLevel =
+  | "RECOMMENDED"
+  | "AVAILABLE"
+  | "NOT_APPLICABLE";
+
+export type TestPlanConfigurationState =
+  | "READY"
+  | "NEEDS_CONFIGURATION"
+  | "NOT_APPLICABLE";
+
+export interface TestPlanStepOption {
+  id: string;
+  position: number;
+  action: FlowStep["action"];
+  label: string;
+}
+
+export interface TestPlanObservationOption {
+  id: string;
+  afterStepId: string;
+  label: string;
+  observation: ElementObservation;
+}
+
+export interface TestPlanRecommendation {
+  scenarioKey: string;
+  name: string;
+  family: ScenarioFamily;
+  mode?: "REFRESH" | "BACK";
+  recommendation: TestPlanRecommendationLevel;
+  configuration: TestPlanConfigurationState;
+  reason: string;
+  /** Whether this scenario belongs to the deterministic focused plan. */
+  defaultSelected?: boolean;
+  request?: { method: string; pathname: string };
+  defaultCheckpointStepId?: string;
+  defaultObservationId?: string;
+  defaultExpectedUrl?: string;
+}
+
+export interface TestPlanRecommendations {
+  flowId: string;
+  mode: "FOCUSED";
+  steps: readonly TestPlanStepOption[];
+  observations: readonly TestPlanObservationOption[];
+  recommendations: readonly TestPlanRecommendation[];
 }
 
 export interface FlowSummary {
@@ -61,6 +116,88 @@ export interface FlowSummary {
   scenarioCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export const CAPTURE_SESSION_STATUSES = [
+  "ACTIVE",
+  "READY",
+  "CANCELLED",
+  "ERROR",
+] as const;
+
+export type CaptureSessionStatus =
+  (typeof CAPTURE_SESSION_STATUSES)[number];
+
+export interface CaptureNetworkObservation {
+  method: string;
+  pathname: string;
+  status?: number;
+  timestamp: string;
+  actionStepId?: string;
+}
+
+export interface CriticalActionCandidate {
+  stepId: string;
+  label: string;
+  request: {
+    method: string;
+    pathname: string;
+  };
+  reason: string;
+}
+
+export interface CapturedFlowDraft {
+  suggestedId: string;
+  suggestedName: string;
+  steps: readonly FlowStep[];
+  criticalActionCandidates: readonly CriticalActionCandidate[];
+  successTextCandidates: readonly string[];
+  finalUrl: string;
+  network: readonly CaptureNetworkObservation[];
+}
+
+export type CaptureDiagnosticStage =
+  | "CAPTURING"
+  | "FLUSHING_EVENTS"
+  | "READING_FINAL_PAGE"
+  | "NORMALIZING";
+
+export interface CaptureDiagnosticLocatorCandidates {
+  role?: { role: AriaRole; name: string; unique: boolean };
+  label?: { text: string; unique: boolean };
+  testId?: { value: string; unique: boolean };
+  text?: { text: string; unique: boolean };
+  css?: { selector: string; unique: boolean };
+}
+
+export interface CaptureDiagnosticEvent {
+  order: number;
+  kind: "CLICK" | "FILL" | "SELECT_OPTION" | "NAVIGATION";
+  timestamp: string;
+  pathname: string;
+  locator?: CaptureDiagnosticLocatorCandidates;
+  sensitive?: boolean;
+  valueLength?: number;
+}
+
+export interface CaptureDiagnostics {
+  stage: CaptureDiagnosticStage;
+  events: readonly CaptureDiagnosticEvent[];
+  network: readonly CaptureNetworkObservation[];
+  finalPathname?: string;
+  errorMessage: string;
+}
+
+export interface CaptureSession {
+  id: string;
+  projectId: string;
+  status: CaptureSessionStatus;
+  targetUrl: string;
+  startedAt: string;
+  updatedAt: string;
+  errorMessage?: string;
+  draft?: CapturedFlowDraft;
+  diagnostics?: CaptureDiagnostics;
 }
 
 export interface PersistedScenario {
@@ -125,6 +262,7 @@ export interface PersistedTestResult {
   executionError?: ExecutionErrorObservation;
   evidence: PersistedExecutionEvidence;
   executedSteps: readonly ExecutedStep[];
+  assertions: readonly FlowAssertionResult[];
   assertion: SuccessAssertionResult;
   artifacts: readonly ArtifactMetadata[];
 }

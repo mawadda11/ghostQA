@@ -46,4 +46,57 @@ describe("API request schemas", () => {
       }),
     ).toThrow();
   });
+
+  it("accepts bounded API Failure automatic observation", () => {
+    expect(() =>
+      scenarioConfigSchema.parse({
+        family: "API_FAILURE",
+        checkpointStepId: "ready",
+        request: { method: "POST", pathname: "/api/items" },
+        statusCode: 500,
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts optional critical actions and multiple step-bound assertions", () => {
+    expect(() =>
+      normalizedFlowSchema.parse({
+        id: "read-only",
+        name: "Read-only flow",
+        steps: [
+          { id: "start", position: 0, action: "NAVIGATE", path: "/" },
+          { id: "result", position: 1, action: "WAIT_FOR_URL", url: "**/result" },
+        ],
+        assertions: [
+          {
+            id: "start-ready",
+            afterStepId: "start",
+            assertion: { kind: "TEXT_VISIBLE", text: "Ready" },
+          },
+          {
+            id: "result-ready",
+            afterStepId: "result",
+            assertion: { kind: "URL_MATCHES", value: "**/result" },
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects assertions attached to missing steps and flows with no assertion", () => {
+    const base = {
+      id: "invalid",
+      name: "Invalid flow",
+      steps: [{ id: "start", position: 0, action: "NAVIGATE", path: "/" }],
+    };
+    expect(() => normalizedFlowSchema.parse(base)).toThrow(/requires a final assertion/);
+    expect(() => normalizedFlowSchema.parse({
+      ...base,
+      assertions: [{
+        id: "missing",
+        afterStepId: "unknown",
+        assertion: { kind: "TEXT_VISIBLE", text: "Ready" },
+      }],
+    })).toThrow(/existing flow step/);
+  });
 });

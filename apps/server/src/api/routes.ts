@@ -15,6 +15,7 @@ import {
   getFlow,
   listProjectFlows,
 } from "../services/flows.js";
+import type { CaptureSessionManager } from "../services/capture.js";
 import { RunOrchestrator } from "../services/orchestrator.js";
 import {
   createProject,
@@ -29,7 +30,9 @@ import {
   listFlowScenarios,
   updateScenario,
   upsertScenarioPlan,
+  replaceScenarioPlan,
 } from "../services/scenarios.js";
+import { getTestPlanRecommendations } from "../services/test-plan.js";
 import {
   createProjectSchema,
   normalizedFlowSchema,
@@ -44,7 +47,8 @@ export interface ApiRouterOptions {
   prisma: PrismaClient;
   allowedHosts: ReadonlySet<string>;
   artifactRoot: string;
-  orchestrator?: RunOrchestrator;
+  orchestrator?: Pick<RunOrchestrator, "runFlow">;
+  captureService: CaptureSessionManager;
 }
 
 const routeParam = (value: string | undefined, name: string): string => {
@@ -122,6 +126,38 @@ export const createApiRouter = (options: ApiRouterOptions): Router => {
     response.sendStatus(204);
   });
 
+  router.post("/projects/:projectId/capture/start", async (request, response) => {
+    response.status(201).json(
+      await options.captureService.start(
+        routeParam(request.params["projectId"], "Project"),
+      ),
+    );
+  });
+
+  router.get("/capture/:captureId", (request, response) => {
+    response.json(
+      options.captureService.get(
+        routeParam(request.params["captureId"], "Capture session"),
+      ),
+    );
+  });
+
+  router.post("/capture/:captureId/stop", async (request, response) => {
+    response.json(
+      await options.captureService.stop(
+        routeParam(request.params["captureId"], "Capture session"),
+      ),
+    );
+  });
+
+  router.post("/capture/:captureId/cancel", async (request, response) => {
+    response.json(
+      await options.captureService.cancel(
+        routeParam(request.params["captureId"], "Capture session"),
+      ),
+    );
+  });
+
   router.post("/projects/:projectId/flows", async (request, response) => {
     const flow = normalizedFlowSchema.parse(request.body) as NormalizedFlow;
     response.status(201).json(
@@ -173,6 +209,27 @@ export const createApiRouter = (options: ApiRouterOptions): Router => {
     );
   });
 
+  router.get("/flows/:flowId/test-plan/recommendations", async (request, response) => {
+    response.json(
+      await getTestPlanRecommendations(
+        options.prisma,
+        routeParam(request.params["flowId"], "Flow"),
+      ),
+    );
+  });
+
+  router.put("/flows/:flowId/test-plan", async (request, response) => {
+    const body = scenarioPlanSchema.parse(request.body);
+    response.json(
+      await replaceScenarioPlan(
+        options.prisma,
+        routeParam(request.params["flowId"], "Flow"),
+        body.scenarios as ScenarioDefinition[],
+        options.allowedHosts,
+      ),
+    );
+  });
+
   router.patch("/scenarios/:scenarioId", async (request, response) => {
     const body = updateScenarioSchema.parse(request.body);
     response.json(
@@ -196,6 +253,15 @@ export const createApiRouter = (options: ApiRouterOptions): Router => {
       await orchestrator.runFlow(
         routeParam(request.params["flowId"], "Flow"),
         body.scenarioIds,
+      ),
+    );
+  });
+
+  router.post("/flows/:flowId/replay", async (request, response) => {
+    response.status(201).json(
+      await orchestrator.runFlow(
+        routeParam(request.params["flowId"], "Flow"),
+        [],
       ),
     );
   });

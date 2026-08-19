@@ -1,9 +1,12 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type {
+  CriticalAction,
+  FlowAssertion,
   FlowStep,
   FlowSummary,
   NormalizedFlow,
   PersistedFlow,
+  SuccessAssertion,
 } from "@ghostqa/shared";
 import { validateBaselineRequest } from "@ghostqa/test-engine";
 
@@ -14,6 +17,7 @@ import {
 } from "../persistence/json.js";
 import {
   criticalActionSchema,
+  flowAssertionsSchema,
   flowStepSchema,
   successAssertionSchema,
 } from "../validation/schemas.js";
@@ -52,23 +56,44 @@ const deserializeStep = (
 export const toNormalizedFlow = (
   record: Pick<
     FlowExecutionRecord,
-    "id" | "name" | "steps" | "criticalActionJson" | "successAssertionJson"
+    | "id"
+    | "name"
+    | "steps"
+    | "criticalActionJson"
+    | "successAssertionJson"
+    | "assertionsJson"
   >,
-): NormalizedFlow => ({
-  id: record.id,
-  name: record.name,
-  steps: record.steps.map(deserializeStep),
-  criticalAction: parseValidatedJson(
-    record.criticalActionJson,
-    criticalActionSchema,
-    `Flow ${record.id} critical action`,
-  ),
-  successAssertion: parseValidatedJson(
-    record.successAssertionJson,
-    successAssertionSchema,
-    `Flow ${record.id} success assertion`,
-  ),
-});
+): NormalizedFlow => {
+  const criticalAction =
+    record.criticalActionJson === null
+      ? undefined
+      : parseValidatedJson<CriticalAction>(
+          record.criticalActionJson,
+          criticalActionSchema,
+          `Flow ${record.id} critical action`,
+        );
+  const successAssertion =
+    record.successAssertionJson === null
+      ? undefined
+      : parseValidatedJson<SuccessAssertion>(
+          record.successAssertionJson,
+          successAssertionSchema,
+          `Flow ${record.id} success assertion`,
+        );
+  const assertions = parseValidatedJson<FlowAssertion[]>(
+    record.assertionsJson,
+    flowAssertionsSchema,
+    `Flow ${record.id} assertions`,
+  );
+  return {
+    id: record.id,
+    name: record.name,
+    steps: record.steps.map(deserializeStep),
+    ...(criticalAction === undefined ? {} : { criticalAction }),
+    ...(successAssertion === undefined ? {} : { successAssertion }),
+    ...(assertions.length === 0 ? {} : { assertions }),
+  };
+};
 
 const toPersistedFlow = (record: FlowExecutionRecord): PersistedFlow => {
   const flow = toNormalizedFlow(record);
@@ -105,15 +130,26 @@ const flowCreateData = (
   ...(id === undefined ? {} : { id }),
   name: flow.name,
   project: { connect: { id: projectId } },
-  criticalActionJson: serializeValidatedJson(
-    flow.criticalAction,
-    criticalActionSchema,
-    "Critical action",
-  ),
-  successAssertionJson: serializeValidatedJson(
-    flow.successAssertion,
-    successAssertionSchema,
-    "Success assertion",
+  criticalActionJson:
+    flow.criticalAction === undefined
+      ? null
+      : serializeValidatedJson(
+          flow.criticalAction,
+          criticalActionSchema,
+          "Critical action",
+        ),
+  successAssertionJson:
+    flow.successAssertion === undefined
+      ? null
+      : serializeValidatedJson(
+          flow.successAssertion,
+          successAssertionSchema,
+          "Success assertion",
+        ),
+  assertionsJson: serializeValidatedJson(
+    flow.assertions ?? [],
+    flowAssertionsSchema,
+    "Flow assertions",
   ),
   steps: {
     create: flow.steps.map((step) => ({
@@ -169,15 +205,26 @@ export const upsertFlow = async (
       where: { id: databaseId },
       data: {
         name: flow.name,
-        criticalActionJson: serializeValidatedJson(
-          flow.criticalAction,
-          criticalActionSchema,
-          "Critical action",
-        ),
-        successAssertionJson: serializeValidatedJson(
-          flow.successAssertion,
-          successAssertionSchema,
-          "Success assertion",
+        criticalActionJson:
+          flow.criticalAction === undefined
+            ? null
+            : serializeValidatedJson(
+                flow.criticalAction,
+                criticalActionSchema,
+                "Critical action",
+              ),
+        successAssertionJson:
+          flow.successAssertion === undefined
+            ? null
+            : serializeValidatedJson(
+                flow.successAssertion,
+                successAssertionSchema,
+                "Success assertion",
+              ),
+        assertionsJson: serializeValidatedJson(
+          flow.assertions ?? [],
+          flowAssertionsSchema,
+          "Flow assertions",
         ),
         steps: {
           create: flow.steps.map((step) => ({

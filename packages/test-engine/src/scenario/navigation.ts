@@ -40,7 +40,7 @@ export class NavigationExecutor implements ScenarioExecutor {
       );
     }
 
-    const mutationMatcher = context.request.flow.criticalAction.request;
+    const mutationMatcher = context.request.flow.criticalAction?.request;
     const mutationCountBefore =
       mutationMatcher === undefined
         ? 0

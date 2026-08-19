@@ -22,15 +22,21 @@ then classifies outcomes deterministically as `PASS`, `FAIL`, `NEEDS_REVIEW`, or
 
 ## My implementation
 
-- designed a normalized, locator-driven baseline flow and success assertion model;
+- designed a normalized, locator-driven baseline model with optional mutation
+  metadata and step-bound assertions/checkpoints;
 - built generic Playwright baseline and scenario engines with isolated contexts;
 - implemented duplicate action, HTTP 500/401 injection, bounded response delay,
   refresh, back-navigation, and client-storage invalidation;
+- added deterministic focused-plan selection and visual overrides without a
+  second scenario format or AI dependency;
+- strengthened duplicate proof with redacted identifier fingerprints and
+  failure/delay evidence with automatic critical-control observation;
 - separated target failures from GhostQA engine failures;
 - captured structured evidence, network/console observations, screenshots, and traces;
 - added Express validation, allowlisting, orchestration, and safe artifact access;
 - persisted projects, flows, scenarios, runs, results, and artifact metadata with Prisma/SQLite;
-- built a responsive React dashboard for configuration, execution, history, and evidence;
+- built a responsive React dashboard for semantic capture, baseline-only replay,
+  deterministic visual test-plan configuration, execution, history, and evidence;
 - created GhostShop as a controlled fixture with four deterministic defects;
 - added unit, integration, persistence, and real Chromium dashboard proofs.
 
@@ -42,6 +48,8 @@ then classifies outcomes deterministically as `PASS`, `FAIL`, `NEEDS_REVIEW`, or
   and the real integration suite reproducible.
 - **Deterministic classification:** explicit evidence supports defensible
   outcomes; inconclusive behavior becomes `NEEDS_REVIEW`.
+- **Focused test budget:** captured evidence selects only applicable, runnable
+  scenarios while Session Expiry and unsafe navigation assumptions stay manual.
 - **Isolated browser contexts:** every execution begins with fresh state and
   closes tracing, context, and browser resources through failure paths.
 - **Persistence-independent engine:** Playwright code depends only on shared
@@ -57,16 +65,16 @@ An actual GhostShop run produced:
 Baseline: PASS
 Double Action: FAIL
 API Failure: FAIL
-Slow Response: NEEDS_REVIEW
+Slow Response: PASS
 Refresh: FAIL
 Back: PASS
 Session Expiry: FAIL
 ```
 
 The failures correspond to duplicate order creation, unsafe API-error recovery,
-refresh state loss, and broken session-expiry recovery. Slow Response remained
-conservatively reviewable because repeatability was observed without a confirmed
-duplicate mutation.
+refresh state loss, and broken session-expiry recovery. Slow Response passes
+because the real browser proves one mutation, a stable pending control, a
+passing final assertion, and no unexpected page error.
 
 ## Tech stack
 

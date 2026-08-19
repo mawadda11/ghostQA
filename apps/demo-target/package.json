@@ -14,8 +14,9 @@
     "test:scenarios": "npm run build:scenarios && node --test dist-scenarios/scenarios/scenarios.smoke.test.js",
     "seed": "npm run build:scenarios && node dist-scenarios/persistence/seed.js",
     "persisted-run": "npm run build:scenarios && node dist-scenarios/persistence/run-persisted.js",
-    "test:persisted-run": "npm run build:scenarios && node --test dist-scenarios/persistence/persisted-run.integration.test.js",
-    "test:dashboard": "npm run build:scenarios && node --test dist-scenarios/dashboard/dashboard.integration.test.js",
+    "prepare:isolated-e2e": "npm run build --workspace @ghostqa/shared --workspace @ghostqa/test-engine --workspace @ghostqa/server",
+    "test:persisted-run": "npm run prepare:isolated-e2e && npm run build && npm run build:scenarios && node ../server/scripts/run-isolated-e2e.mjs dist-scenarios/persistence/persisted-run.integration.test.js",
+    "test:dashboard": "npm run prepare:isolated-e2e && npm run build && npm run build:scenarios && node ../server/scripts/run-isolated-e2e.mjs --dashboard dist-scenarios/dashboard/dashboard.integration.test.js",
     "lint": "eslint src server baseline scenarios persistence dashboard support vite.config.ts",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json"
   },

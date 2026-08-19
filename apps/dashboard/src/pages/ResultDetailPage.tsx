@@ -69,11 +69,26 @@ export const ResultDetailPage = () => {
         <article className="rounded-xl border border-slate-800 bg-slate-900/50 p-5"><h2 className="text-lg font-semibold text-white">Console and page errors</h2><div className="mt-4 space-y-3">{pageErrors.length === 0 && consoleEntries.length === 0 ? <p className="text-sm text-slate-500">No console or page-error observations recorded.</p> : [...pageErrors, ...consoleEntries].map((entry, index) => <div className="rounded-lg border border-slate-800 bg-slate-950/55 p-3" key={`${entry.timestamp}-${index}`}><div className="flex gap-2 text-[11px] font-semibold uppercase tracking-wide"><span className={entry.source === "PAGE_ERROR" || entry.level === "error" ? "text-rose-300" : "text-amber-300"}>{entry.source.replaceAll("_", " ")}</span><span className="text-slate-600">{entry.level}</span></div><p className="mt-2 break-words font-mono text-xs leading-5 text-slate-300">{entry.text}</p></div>)}</div></article>
       </section>
 
+      {result.data.assertions.length === 0 ? null : (
+        <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+          <h2 className="text-lg font-semibold text-white">Flow assertions</h2>
+          <ul className="mt-4 space-y-2">
+            {result.data.assertions.map((assertion) => (
+              <li className="rounded-lg border border-slate-800 bg-slate-950/45 p-3" key={assertion.id}>
+                <div className="flex flex-wrap items-center justify-between gap-2"><code className="text-xs text-slate-400">{assertion.id}</code><StatusBadge label={assertion.status.replaceAll("_", " ")} status={assertion.status === "PASSED" ? "PASS" : assertion.status === "FAILED" ? "FAIL" : "NEEDS_REVIEW"} /></div>
+                {assertion.afterStepId === undefined ? null : <p className="mt-2 text-xs text-slate-500">After step <code className="text-slate-300">{assertion.afterStepId}</code></p>}
+                <p className="mt-2 text-sm text-slate-400">{assertion.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="space-y-4" aria-labelledby="steps-heading"><div><h2 className="text-lg font-semibold text-white" id="steps-heading">Executed steps</h2><p className="mt-1 text-sm text-slate-500">Compact execution record for the baseline journey.</p></div>{result.data.executedSteps.length === 0 ? <EmptyState message="No step observations were persisted for this execution." title="No executed steps" /> : <ol className="grid gap-2 lg:grid-cols-2">{result.data.executedSteps.map((step) => <li className="flex items-start gap-3 rounded-lg border border-slate-800 bg-slate-900/40 p-3.5" key={`${step.position}-${step.stepId}`}><span className={`mt-0.5 size-2 shrink-0 rounded-full ${step.status === "PASSED" ? "bg-emerald-400" : "bg-rose-400"}`} /><div className="min-w-0"><p className="text-sm font-medium text-slate-200">{step.position + 1}. {step.action.replaceAll("_", " ")}</p><p className="mt-1 truncate font-mono text-xs text-slate-500">{step.stepId}</p>{step.error === undefined ? null : <p className="mt-2 text-xs leading-5 text-rose-300">{step.error}</p>}</div></li>)}</ol>}</section>
 
       <section className="space-y-4" aria-labelledby="artifacts-heading"><div><h2 className="text-lg font-semibold text-white" id="artifacts-heading">Artifacts</h2><p className="mt-1 text-sm text-slate-500">Files are retrieved only through validated artifact IDs.</p></div>{screenshots.length === 0 && traces.length === 0 ? <EmptyState message="This result has no screenshot or trace artifact." title="No artifacts available" /> : <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(18rem,0.7fr)]"><div className="space-y-3">{screenshots.map((artifact) => <ScreenshotViewer artifact={artifact} key={artifact.id} />)}</div><div className="space-y-3">{traces.map((artifact) => <article className="rounded-xl border border-slate-800 bg-slate-900/55 p-5" key={artifact.id}><p className="text-sm font-semibold text-white">Playwright trace</p><p className="mt-2 text-sm leading-6 text-slate-400">Download this ZIP and open it with Playwright Trace Viewer.</p><a className="mt-5 inline-flex rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3.5 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-300/15" href={artifactUrl(artifact.id)}>Download trace</a></article>)}</div></div>}</section>
 
-      <details className="rounded-xl border border-slate-800 bg-slate-900/40"><summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-300 hover:text-white">Raw evidence</summary><pre className="max-h-[38rem] overflow-auto border-t border-slate-800 bg-slate-950 p-5 text-xs leading-5 text-slate-400">{JSON.stringify({ evidence: result.data.evidence, assertion: result.data.assertion, executionError: result.data.executionError, executedSteps: result.data.executedSteps, artifacts: result.data.artifacts }, null, 2)}</pre></details>
+      <details className="rounded-xl border border-slate-800 bg-slate-900/40"><summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-300 hover:text-white">Raw evidence</summary><pre className="max-h-[38rem] overflow-auto border-t border-slate-800 bg-slate-950 p-5 text-xs leading-5 text-slate-400">{JSON.stringify({ evidence: result.data.evidence, assertion: result.data.assertion, assertions: result.data.assertions, executionError: result.data.executionError, executedSteps: result.data.executedSteps, artifacts: result.data.artifacts }, null, 2)}</pre></details>
     </div>
   );
 };

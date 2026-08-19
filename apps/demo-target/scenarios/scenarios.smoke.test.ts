@@ -30,6 +30,11 @@ test(
     );
     assert.equal(duplicateEvidence?.metadata?.["successfulCount"], 2);
     assert.equal(duplicateEvidence?.metadata?.["distinctIdentifierCount"], 2);
+    assert.equal(
+      Array.isArray(duplicateEvidence?.metadata?.["identifierFingerprints"]),
+      true,
+    );
+    assert.equal("identifiers" in (duplicateEvidence?.metadata ?? {}), false);
 
     const apiFailure = byId(run.scenarios, "api-failure");
     assert.equal(apiFailure.status, "FAIL", apiFailure.summary);
@@ -45,6 +50,16 @@ test(
     assert.ok(
       slowResponse.status === "PASS" ||
         slowResponse.status === "NEEDS_REVIEW",
+    );
+    const controlEvidence = slowResponse.evidence.entries.find(
+      (entry) =>
+        entry.type === "ELEMENT_STATE" &&
+        entry.message.includes("critical control"),
+    );
+    assert.equal(controlEvidence?.metadata?.["duringAttached"], true);
+    assert.equal(
+      typeof controlEvidence?.metadata?.["duringEnabled"],
+      "boolean",
     );
 
     const refresh = byId(run.scenarios, "refresh");

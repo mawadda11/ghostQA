@@ -80,6 +80,7 @@ export const persistExecutionReport = async (
         {
           executedSteps: input.report.executedSteps,
           assertion: input.report.assertion,
+          assertions: input.report.assertions ?? [],
         },
         resultObservationsSchema,
         "Execution observations",
@@ -111,6 +112,7 @@ export const toPersistedTestResult = (
   const observations = parseValidatedJson<{
     executedSteps: PersistedTestResult["executedSteps"];
     assertion: PersistedTestResult["assertion"];
+    assertions?: PersistedTestResult["assertions"];
   }>(
     record.observationsJson,
     resultObservationsSchema,
@@ -146,6 +148,7 @@ export const toPersistedTestResult = (
     ...(executionError === undefined ? {} : { executionError }),
     evidence,
     executedSteps: observations.executedSteps,
+    assertions: observations.assertions ?? [],
     assertion: observations.assertion,
     artifacts: record.artifacts.map((artifact) => ({
       id: artifact.id,

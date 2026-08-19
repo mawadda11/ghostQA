@@ -2,6 +2,7 @@ import type {
   PersistedFlow,
   PersistedScenario,
   ScenarioDefinition,
+  TestPlanRecommendations,
   TestRunDetail,
 } from "@ghostqa/shared";
 
@@ -27,6 +28,22 @@ export const importScenarioPlan = (
     },
   );
 
+export const getTestPlanRecommendations = (
+  flowId: string,
+): Promise<TestPlanRecommendations> =>
+  apiClient.request<TestPlanRecommendations>(
+    `/api/flows/${flowId}/test-plan/recommendations`,
+  );
+
+export const saveTestPlan = (
+  flowId: string,
+  scenarios: readonly ScenarioDefinition[],
+): Promise<PersistedScenario[]> =>
+  apiClient.request<PersistedScenario[]>(`/api/flows/${flowId}/test-plan`, {
+    method: "PUT",
+    body: JSON.stringify({ scenarios }),
+  });
+
 export const updateScenarioEnabled = (
   scenarioId: string,
   enabled: boolean,
@@ -42,3 +59,8 @@ export const runFlow = (flowId: string): Promise<TestRunDetail> =>
     body: "{}",
   });
 
+export const replayBaseline = (flowId: string): Promise<TestRunDetail> =>
+  apiClient.request<TestRunDetail>(`/api/flows/${flowId}/replay`, {
+    method: "POST",
+    body: "{}",
+  });
